@@ -6,9 +6,13 @@ import SwiftData
 /// fails the context is rolled back, so a crash or an error never leaves a half-applied action.
 @MainActor
 final class SwiftDataProgressRepository: ProgressRepository {
+    /// A `ModelContext` does not keep its container alive: without this strong reference the
+    /// container may be released while the repository is still in use, which crashes.
+    private let container: ModelContainer
     private let context: ModelContext
 
     init(container: ModelContainer) {
+        self.container = container
         context = container.mainContext
     }
 
