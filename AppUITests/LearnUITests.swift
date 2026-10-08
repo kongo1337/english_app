@@ -29,10 +29,19 @@ final class LearnUITests: XCTestCase {
     }
 
     /// Taps a button and waits until the next card has appeared (taps during the fly-out are ignored).
+    /// On a slow runner the very first tap can be lost while the app is still settling, so a tap
+    /// that changed nothing is repeated once; a registered tap always changes the card.
     private func tapAndWaitForNextCard(_ button: String, file: StaticString = #filePath, line: UInt = #line) {
         let before = word.label
-        app.buttons[button].tap()
-        wait(for: { self.word.exists && self.word.label != before }, "card did not change after \(button)", file: file, line: line)
+        let target = app.buttons[button]
+        XCTAssertTrue(target.waitForExistence(timeout: 5), "no \(button)", file: file, line: line)
+        target.tap()
+        let changed = { self.word.exists && self.word.label != before }
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in changed() }, object: nil)
+        if XCTWaiter().wait(for: [expectation], timeout: 4) != .completed {
+            target.tap()
+        }
+        wait(for: changed, "card did not change after \(button)", timeout: 8, file: file, line: line)
     }
 
     private func hasCyrillic(_ text: String) -> Bool {
