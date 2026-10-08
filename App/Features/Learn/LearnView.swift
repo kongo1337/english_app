@@ -21,6 +21,7 @@ struct LearnView: View {
                 content
                 Spacer(minLength: Theme.Spacing.medium)
             }
+            .scrollsAtAccessibilitySizes()
             .padding(.horizontal, Theme.Spacing.screen)
             .padding(.top, Theme.Spacing.small)
         }
@@ -77,13 +78,13 @@ private struct CardStack: View {
         VStack(spacing: Theme.Spacing.large) {
             FlashCardStack(model: model)
 
-            HStack(spacing: Theme.Spacing.medium) {
+            ButtonRow {
                 Button { Task { await model.decide(.stillLearning) } } label: {
                     Text("Ещё учу")
                 }
                 .buttonStyle(.pill(.secondary))
                 .accessibilityIdentifier("stillLearningButton")
-
+            } trailing: {
                 Button { Task { await model.decide(.learned) } } label: {
                     Label("Выучил", systemImage: "checkmark")
                 }

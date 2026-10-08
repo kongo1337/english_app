@@ -5,6 +5,7 @@ Usage: python3 -I tools/make_assets.py   (needs Pillow for the icon: pip install
 
 The colour table below is the single source of truth for the design tokens in
 docs/02-architecture.md §2.7; edit it here and regenerate.
+Text colours keep a contrast of at least 4.5:1 on Bg, Surface and (level chips) their own tint.
 """
 from __future__ import annotations
 
@@ -20,17 +21,17 @@ COLORS: dict[str, tuple[str, str]] = {
     "SurfaceMuted": ("F1E8DF", "2C2823"),
     "Border": ("E8DFD5", "38332D"),
     "TextPrimary": ("1E1A16", "F3EEE8"),
-    "TextSecondary": ("8B8279", "A59D94"),
+    "TextSecondary": ("6B635B", "A59D94"),
     "Accent": ("4746B4", "7C7BF0"),
     "AccentGradientTop": ("5B59D8", "8E8DF5"),
     "Badge": ("F0522F", "FF6A4A"),
-    "Success": ("3E9B6E", "5BC08E"),
-    "Warning": ("D9912B", "E8A84A"),
-    "LevelA1": ("4F9D78", "6DBE97"),
-    "LevelA2": ("3E9A9F", "5DBBC0"),
-    "LevelB1": ("4F7FC4", "72A0E3"),
-    "LevelB2": ("6A63C9", "8C86E8"),
-    "LevelC1": ("9A5BB5", "BB7DD6"),
+    "Success": ("2B7A52", "5BC08E"),
+    "Warning": ("9A5F00", "E8A84A"),
+    "LevelA1": ("2A6E4F", "6DBE97"),
+    "LevelA2": ("1B6B70", "5DBBC0"),
+    "LevelB1": ("2F62A8", "72A0E3"),
+    "LevelB2": ("5249B5", "9A95F0"),
+    "LevelC1": ("7E3F99", "BB7DD6"),
 }
 
 INFO = {"author": "xcode", "version": 1}

@@ -18,6 +18,7 @@ struct ReviewView: View {
                 content
                 Spacer(minLength: Theme.Spacing.medium)
             }
+            .scrollsAtAccessibilitySizes()
             .padding(.horizontal, Theme.Spacing.screen)
             .padding(.top, Theme.Spacing.small)
         }
@@ -74,13 +75,13 @@ struct ReviewView: View {
             VStack(spacing: Theme.Spacing.large) {
                 FlashCardStack(model: model)
 
-                HStack(spacing: Theme.Spacing.medium) {
+                ButtonRow {
                     Button { Task { await model.answer(.forgot) } } label: {
                         Text("Забыл")
                     }
                     .buttonStyle(.pill(.secondary))
                     .accessibilityIdentifier("forgotButton")
-
+                } trailing: {
                     Button { Task { await model.answer(.remembered) } } label: {
                         Label("Помню", systemImage: "checkmark")
                     }

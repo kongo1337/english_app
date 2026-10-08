@@ -2,8 +2,10 @@ import StudyCore
 import SwiftUI
 
 /// The current card with the next one peeking out from behind, draggable to either side.
+/// With accessibility text sizes the screen scrolls and the buttons replace the swipes.
 struct FlashCardStack<Model: FlashCardModel>: View {
     let model: Model
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ZStack {
@@ -19,10 +21,10 @@ struct FlashCardStack<Model: FlashCardModel>: View {
                     .id(word.id)
                     .offset(x: model.dragWidth, y: model.dragHeight)
                     .rotationEffect(.degrees(SwipeDecision.rotation(forWidth: model.dragWidth)))
-                    .gesture(drag)
+                    .gesture(drag, including: typeSize.isAccessibilitySize ? .subviews : .all)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 470)
+        .frame(maxWidth: .infinity, minHeight: typeSize.isAccessibilitySize ? 460 : 340, maxHeight: typeSize.isAccessibilitySize ? nil : 470)
     }
 
     private var drag: some Gesture {
