@@ -25,12 +25,13 @@ final class DictionariesUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 5), "no search field: \(app.debugDescription)")
         search.tap()
         search.typeText("abandon")
-        let row = app.cells.firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "search found nothing")
+        // The first list cell is the filter bar, so look the word up by its identifier.
+        let row = app.descendants(matching: .any)["wordRow.abandon_verb"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "search found nothing: \(app.debugDescription)")
         row.tap()
 
-        let status = app.staticTexts["detailStatus"]
-        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        let status = app.descendants(matching: .any)["detailStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5), "no detail screen: \(app.debugDescription)")
         XCTAssertEqual(status.label, "Новое")
         app.buttons["markKnownButton"].tap()
         wait(for: { status.label == "Знаю" }, "status did not become 'Знаю'")

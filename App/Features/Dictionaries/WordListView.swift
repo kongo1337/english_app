@@ -30,6 +30,7 @@ struct WordListView: View {
                     } label: {
                         WordRow(word: word, status: app.study.status(of: word.id))
                     }
+                    .accessibilityIdentifier("wordRow.\(word.id)")
                     .listRowBackground(Theme.surface)
                 }
             } header: {
