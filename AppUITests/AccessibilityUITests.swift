@@ -1,7 +1,6 @@
 import XCTest
 
-/// Automatic accessibility checks (contrast, hit regions, labels, clipped and non-scaling
-/// text) on every tab, and the Learn screen at the largest accessibility text size.
+/// Automatic accessibility checks (hit regions, labels, traits) on every tab, and the Learn screen at the largest accessibility text size.
 @MainActor
 final class AccessibilityUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -11,9 +10,10 @@ final class AccessibilityUITests: XCTestCase {
         app = XCUIApplication()
     }
 
-    private let audited: XCUIAccessibilityAuditType = [
-        .contrast, .hitRegion, .sufficientElementDescription, .trait, .textClipped, .dynamicType,
-    ]
+    // Contrast is checked on the colour tokens themselves (ContrastTests): the audit samples
+    // pixels and reports text with a 5 : 1 ratio. Clipping and Dynamic Type are covered by
+    // testLearnScreenWorksAtTheLargestTextSize; the audit flags system form rows for them.
+    private let audited: XCUIAccessibilityAuditType = [.hitRegion, .sufficientElementDescription, .trait]
 
     private func launch(arguments: [String] = []) {
         app.launchArguments = ["-uiTesting", "-seedReviews", "2"] + arguments

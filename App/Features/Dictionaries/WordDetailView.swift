@@ -59,6 +59,7 @@ struct WordDetailView: View {
                     .foregroundStyle(Theme.textSecondary)
                 if !word.headerDetail.isEmpty {
                     Text(word.headerDetail)
+                        .accessibilityLabel(word.spokenHeaderDetail)
                         .font(Theme.Typography.small)
                         .foregroundStyle(Theme.textSecondary)
                 }

@@ -187,3 +187,21 @@ import Testing
         #expect(ProgressTexts.dayLabel(4) == "+4")
     }
 }
+
+@Suite struct SpokenPartOfSpeechTests {
+    @Test func everyPartOfSpeechHasASpelledOutName() {
+        for pos in PartOfSpeech.allCases where pos != .other {
+            #expect(pos.russianName.count > pos.shortRussianName.count - 1, "\(pos)")
+            #expect(!pos.russianName.contains("."), "\(pos) must not be abbreviated")
+        }
+        #expect(PartOfSpeech.other.russianName.isEmpty)
+    }
+
+    @Test func spokenHeaderJoinsPartOfSpeechAndSense() {
+        let word = Word(
+            id: "bank-money_noun", lemma: "bank", sense: "money", pos: .noun, cefr: .a2, list: .ox3000,
+            translations: ["банк"], order: 1)
+        #expect(word.spokenHeaderDetail == "существительное, money")
+        #expect(word.headerDetail == "сущ. · money")
+    }
+}

@@ -145,6 +145,7 @@ struct WordCardView<Model: FlashCardModel>: View {
                 LevelChip(level: word.cefr)
                 if !word.headerDetail.isEmpty {
                     Text(word.headerDetail)
+                        .accessibilityLabel(word.spokenHeaderDetail)
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.textSecondary)
                         .lineLimit(1)

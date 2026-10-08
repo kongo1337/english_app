@@ -22,7 +22,34 @@ extension PartOfSpeech {
     }
 }
 
+extension PartOfSpeech {
+    /// Spelled-out Russian name, for VoiceOver (the short form is an abbreviation).
+    public var russianName: String {
+        switch self {
+        case .noun: "существительное"
+        case .verb: "глагол"
+        case .adjective: "прилагательное"
+        case .adverb: "наречие"
+        case .preposition: "предлог"
+        case .conjunction: "союз"
+        case .pronoun: "местоимение"
+        case .determiner: "определитель"
+        case .number: "числительное"
+        case .exclamation: "междометие"
+        case .modal: "модальный глагол"
+        case .auxiliary: "вспомогательный глагол"
+        case .article: "артикль"
+        case .other: ""
+        }
+    }
+}
+
 extension Word {
+    /// The same as `headerDetail`, with the part of speech spelled out.
+    public var spokenHeaderDetail: String {
+        [pos.russianName, sense].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
     /// "сущ. · money": part of speech plus the Oxford sense note, when there is one.
     public var headerDetail: String {
         [pos.shortRussianName, sense].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")

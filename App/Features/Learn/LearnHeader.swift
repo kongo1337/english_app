@@ -41,7 +41,7 @@ struct LearnHeader: View {
                     Image(systemName: "arrow.uturn.backward")
                         .font(.system(.body, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                        .frame(width: 44, height: 32)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

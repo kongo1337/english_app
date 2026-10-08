@@ -98,6 +98,7 @@ struct ProgressScreen: View {
             }
             .chartXAxis(.hidden)
             .frame(height: 140)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("График выученных слов по дням")
             .accessibilityValue("Всего за период: \(days.map(\.count).reduce(0, +))")
         }
@@ -147,6 +148,7 @@ struct ProgressScreen: View {
                     }
             }
             .frame(height: 140)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("Прогноз повторений")
             .accessibilityValue(forecast.map(String.init).joined(separator: ", "))
         }
