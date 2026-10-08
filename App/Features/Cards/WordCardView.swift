@@ -2,8 +2,8 @@ import StudyCore
 import SwiftUI
 
 /// One flash card: the two faces, the top bar (level, menu, speaker), the swipe hints.
-struct WordCardView: View {
-    let model: LearnViewModel
+struct WordCardView<Model: FlashCardModel>: View {
+    let model: Model
     let word: Word
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,10 +22,12 @@ struct WordCardView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("card")
         .accessibilityAction(named: "Перевернуть") { model.flip() }
-        .accessibilityAction(named: "Выучил") { Task { await model.decide(.learned) } }
-        .accessibilityAction(named: "Ещё учу") { Task { await model.decide(.stillLearning) } }
-        .accessibilityAction(named: "Уже знаю") { Task { await model.decide(.known) } }
         .accessibilityAction(named: "Озвучить") { model.speakLemma() }
+        .accessibilityActions {
+            ForEach(model.decisionActions) { action in
+                Button(action.title) { action.run() }
+            }
+        }
     }
 
     // MARK: Faces
@@ -164,13 +166,10 @@ struct WordCardView: View {
 
     private var menu: some View {
         Menu {
-            Button { Task { await model.decide(.known) } } label: {
-                Label("Уже знаю", systemImage: "checkmark.seal")
-            }
-            Button { model.toggleFavorite() } label: {
-                Label(
-                    model.isFavorite ? "Убрать из избранного" : "В избранное",
-                    systemImage: model.isFavorite ? "star.slash" : "star")
+            ForEach(model.menuActions) { action in
+                Button { action.run() } label: {
+                    Label(action.title, systemImage: action.systemImage)
+                }
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -201,17 +200,18 @@ struct WordCardView: View {
     private var swipeHints: some View {
         let progress = SwipeDecision.hintProgress(forWidth: model.dragWidth)
         return ZStack {
-            hint("Выучил", color: Theme.success, alignment: .topLeading, tilt: -10)
+            hint(model.rightHint, alignment: .topLeading, tilt: -10)
                 .opacity(model.dragWidth > 0 ? progress : 0)
-            hint("Ещё учу", color: Theme.warning, alignment: .topTrailing, tilt: 10)
+            hint(model.leftHint, alignment: .topTrailing, tilt: 10)
                 .opacity(model.dragWidth < 0 ? progress : 0)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    private func hint(_ text: LocalizedStringKey, color: Color, alignment: Alignment, tilt: Double) -> some View {
-        Text(text)
+    private func hint(_ hint: SwipeHint, alignment: Alignment, tilt: Double) -> some View {
+        let color = hint.color
+        return Text(hint.text)
             .font(.system(.title3, design: .rounded, weight: .heavy))
             .textCase(.uppercase)
             .foregroundStyle(color)

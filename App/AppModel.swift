@@ -80,9 +80,17 @@ final class AppModel {
         let repository = SwiftDataProgressRepository(container: container)
 
         let fixedNow = options.fixedNow
+        let clock = DayClock()
+        if options.uiTesting, let count = options.seedReviews, count > 0 {
+            let today = clock.dayKey(for: fixedNow ?? Date())
+            let seeded = catalog.words.prefix(count).map {
+                WordProgress(wordId: $0.id, status: .review, box: 1, dueDayKey: today, timesSeen: 1)
+            }
+            try repository.commit(StateChange(progress: Array(seeded)))
+        }
         let engine = try StudyEngine(
             catalog: catalog, repository: repository, settings: settings.values.study,
-            clock: DayClock(), now: { fixedNow ?? Date() })
+            clock: clock, now: { fixedNow ?? Date() })
         let study = StudyService(engine: engine)
 
         let haptics = HapticsService()

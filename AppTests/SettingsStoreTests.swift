@@ -95,6 +95,11 @@ import Testing
         #expect(options.fixedNow == Date(timeIntervalSince1970: 1_791_460_800))
     }
 
+    @Test func parsesTheSeededReviews() {
+        #expect(LaunchOptions.parse(["App", "-uiTesting", "-seedReviews", "4"]).seedReviews == 4)
+        #expect(LaunchOptions.parse(["App"]).seedReviews == nil)
+    }
+
     @Test func parsesTheDailyPlanSize() {
         #expect(LaunchOptions.parse(["App", "-uiTesting", "-newWordsPerDay", "3"]).newWordsPerDay == 3)
         #expect(LaunchOptions.parse(["App", "-newWordsPerDay", "many"]).newWordsPerDay == nil)

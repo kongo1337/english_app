@@ -31,3 +31,37 @@ public enum CountdownFormatter {
         return "\(pad(total / 3600)) : \(pad(total % 3600 / 60)) : \(pad(total % 60))"
     }
 }
+
+public enum ReviewTexts {
+    /// Under the title of the Review tab: "Осталось 12 слов".
+    public static func subtitle(remaining: Int) -> String {
+        "Осталось \(RussianPlural.words(remaining))"
+    }
+
+    /// What the Review tab says when there is nothing to repeat right now.
+    ///
+    /// - Parameters:
+    ///   - forecast: repetitions due today, tomorrow, … (see `StatsCalculator.reviewForecast`).
+    ///   - answeredToday: repetitions already answered today.
+    public static func emptyMessage(forecast: [Int], answeredToday: Int) -> String {
+        var parts: [String] = []
+        if answeredToday > 0 {
+            parts.append("Сегодня повторено \(RussianPlural.words(answeredToday)).")
+        }
+        if let today = forecast.first, today > 0 {
+            // Words are due but hidden: the daily limit has been reached.
+            parts.append("Дневной лимит исчерпан, ещё \(RussianPlural.words(today)) ждут завтра.")
+        } else if let next = forecast.indices.dropFirst().first(where: { forecast[$0] > 0 }) {
+            let count = RussianPlural.words(forecast[next])
+            if next == 1 {
+                parts.append("Завтра повторим \(count).")
+            } else {
+                let days = RussianPlural.form(next, one: "день", few: "дня", many: "дней")
+                parts.append("Через \(next) \(days) повторим \(count).")
+            }
+        } else {
+            parts.append("Выучите новые слова: они появятся здесь завтра.")
+        }
+        return parts.joined(separator: " ")
+    }
+}

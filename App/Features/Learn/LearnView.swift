@@ -75,23 +75,7 @@ private struct CardStack: View {
 
     var body: some View {
         VStack(spacing: Theme.Spacing.large) {
-            ZStack {
-                if model.hasNextCard {
-                    CardSurface()
-                        .scaleEffect(0.94)
-                        .offset(y: 16)
-                        .opacity(0.7)
-                        .accessibilityHidden(true)
-                }
-                if let word = model.currentWord {
-                    WordCardView(model: model, word: word)
-                        .id(word.id)
-                        .offset(x: model.dragWidth, y: model.dragHeight)
-                        .rotationEffect(.degrees(SwipeDecision.rotation(forWidth: model.dragWidth)))
-                        .gesture(drag)
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 470)
+            FlashCardStack(model: model)
 
             HStack(spacing: Theme.Spacing.medium) {
                 Button { Task { await model.decide(.stillLearning) } } label: {
@@ -107,19 +91,6 @@ private struct CardStack: View {
                 .accessibilityIdentifier("learnedButton")
             }
         }
-    }
-
-    private var drag: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                model.dragChanged(width: value.translation.width, height: value.translation.height)
-            }
-            .onEnded { value in
-                Task {
-                    await model.dragEnded(
-                        width: value.translation.width, predictedEndWidth: value.predictedEndTranslation.width)
-                }
-            }
     }
 }
 

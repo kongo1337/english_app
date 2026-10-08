@@ -1,26 +1,24 @@
 import StudyCore
 import SwiftUI
 
-enum CardSide { case english, russian }
-
 /// The state and actions of the Learn screen: which side of the card is up, how far the card
 /// is dragged, and what each button does. The study rules themselves live in `StudyEngine`.
 @MainActor
 @Observable
-final class LearnViewModel {
+final class LearnViewModel: FlashCardModel {
     let study: StudyService
     let settings: SettingsStore
-    private let speech: any Speaking
-    private let haptics: HapticsService
+    let speech: any Speaking
+    let haptics: HapticsService
 
     var isFlipped = false
     var dragWidth: CGFloat = 0
     var dragHeight: CGFloat = 0
-    private(set) var isBusy = false
+    var isBusy = false
 
     /// How long the card flies off screen before the action is applied; tests set it to 0.
     @ObservationIgnored var flyOutDuration: Double = 0.2
-    @ObservationIgnored private var thresholdHapticFired = false
+    @ObservationIgnored var thresholdHapticFired = false
 
     init(study: StudyService, settings: SettingsStore, speech: any Speaking, haptics: HapticsService) {
         self.study = study
@@ -35,12 +33,7 @@ final class LearnViewModel {
 
     // MARK: What is shown
 
-    var direction: CardDirection { settings.values.direction }
     var currentWord: Word? { study.currentWord }
-    var frontSide: CardSide { direction == .enToRu ? .english : .russian }
-    var backSide: CardSide { direction == .enToRu ? .russian : .english }
-    /// Whether the English word is on screen right now (and may be read aloud).
-    var englishVisible: Bool { (isFlipped ? backSide : frontSide) == .english }
     var hasNextCard: Bool { study.plan.queue.count > 1 }
 
     var progressFraction: Double {
@@ -55,27 +48,51 @@ final class LearnViewModel {
         LearnTexts.subtitle(learned: study.plan.learnedCount, total: study.plan.totalCount)
     }
 
-    // MARK: Card
+    var rightHint: SwipeHint { SwipeHint(text: "Выучил", color: Theme.success) }
+    var leftHint: SwipeHint { SwipeHint(text: "Ещё учу", color: Theme.warning) }
 
-    func flip() {
-        guard currentWord != nil, !isBusy else { return }
-        haptics.soft()
-        withAnimation(.spring(duration: 0.45, bounce: 0.15)) { isFlipped.toggle() }
-        speakIfNeeded()
+    var decisionActions: [CardAction] {
+        [
+            CardAction(id: "learned", title: "Выучил", systemImage: "checkmark") { [self] in
+                Task { await decide(.learned) }
+            },
+            CardAction(id: "stillLearning", title: "Ещё учу", systemImage: "arrow.uturn.left") { [self] in
+                Task { await decide(.stillLearning) }
+            },
+            CardAction(id: "known", title: "Уже знаю", systemImage: "checkmark.seal") { [self] in
+                Task { await decide(.known) }
+            },
+        ]
+    }
+
+    var menuActions: [CardAction] {
+        [
+            CardAction(id: "known", title: "Уже знаю", systemImage: "checkmark.seal") { [self] in
+                Task { await decide(.known) }
+            },
+            favoriteAction,
+        ]
+    }
+
+    private var favoriteAction: CardAction {
+        CardAction(
+            id: "favorite",
+            title: isFavorite ? "Убрать из избранного" : "В избранное",
+            systemImage: isFavorite ? "star.slash" : "star"
+        ) { [self] in toggleFavorite() }
+    }
+
+    // MARK: Actions
+
+    func swiped(_ direction: SwipeDirection) async {
+        await decide(direction == .right ? .learned : .stillLearning)
     }
 
     /// Applies an action: the card flies out, then the study state moves on.
     func decide(_ action: LearnAction) async {
         guard !isBusy, currentWord != nil else { return }
         isBusy = true
-        if flyOutDuration > 0 {
-            let exit = exitOffset(for: action)
-            withAnimation(.easeIn(duration: flyOutDuration)) {
-                dragWidth = exit.width
-                dragHeight = exit.height
-            }
-            try? await Task.sleep(for: .seconds(flyOutDuration))
-        }
+        await flyOut(to: exitOffset(for: action))
         switch action {
         case .learned, .known: haptics.success()
         case .stillLearning: haptics.light()
@@ -94,45 +111,9 @@ final class LearnViewModel {
         speakIfNeeded()
     }
 
-    func toggleDirection() {
-        settings.update { $0.direction = $0.direction == .enToRu ? .ruToEn : .enToRu }
-        resetCard()
-        speakIfNeeded()
-    }
-
     func toggleFavorite() {
         guard let word = currentWord else { return }
         study.toggleFavorite(word.id)
-    }
-
-    /// Called when a different card comes up (also after undo or a new day).
-    func cardDidChange() {
-        resetCard()
-        speakIfNeeded()
-    }
-
-    // MARK: Dragging
-
-    func dragChanged(width: CGFloat, height: CGFloat) {
-        guard !isBusy else { return }
-        dragWidth = width
-        dragHeight = height * 0.2
-        let reached = abs(width) >= SwipeDecision.distanceThreshold
-        if reached, !thresholdHapticFired { haptics.soft() }
-        thresholdHapticFired = reached
-    }
-
-    func dragEnded(width: CGFloat, predictedEndWidth: CGFloat) async {
-        guard !isBusy else { return }
-        thresholdHapticFired = false
-        if let action = SwipeDecision.action(forWidth: width, predictedEndWidth: predictedEndWidth) {
-            await decide(action)
-        } else {
-            withAnimation(.spring(duration: 0.35, bounce: 0.3)) {
-                dragWidth = 0
-                dragHeight = 0
-            }
-        }
     }
 
     // MARK: Round and day
@@ -141,23 +122,6 @@ final class LearnViewModel {
     func finishForToday() { study.finishForToday() }
     func addMoreWords() { study.addMoreWords() }
 
-    // MARK: Speech
-
-    func speakLemma() {
-        guard let word = currentWord else { return }
-        speech.speak(word.lemma, accent: settings.values.speechAccent, speed: settings.values.speechSpeed)
-    }
-
-    func speakExample() {
-        guard let example = currentWord?.exampleEN else { return }
-        speech.speak(example, accent: settings.values.speechAccent, speed: settings.values.speechSpeed)
-    }
-
-    private func speakIfNeeded() {
-        guard settings.values.autoSpeak, englishVisible, currentWord != nil else { return }
-        speakLemma()
-    }
-
     func markHelpSeen() {
         guard !settings.values.hasSeenHelp else { return }
         settings.update { $0.hasSeenHelp = true }
@@ -165,20 +129,10 @@ final class LearnViewModel {
 
     // MARK: Plumbing
 
-    private func resetCard() {
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            isFlipped = false
-            dragWidth = 0
-            dragHeight = 0
-        }
-    }
-
     private func exitOffset(for action: LearnAction) -> CGSize {
         switch action {
-        case .learned: CGSize(width: 600, height: 0)
-        case .stillLearning: CGSize(width: -600, height: 0)
+        case .learned: swipeOffset(for: .right)
+        case .stillLearning: swipeOffset(for: .left)
         case .known: CGSize(width: 0, height: -700)
         }
     }

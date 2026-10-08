@@ -52,26 +52,26 @@ import Testing
 
 @Suite struct SwipeDecisionTests {
     @Test func farDragsAreDecisions() {
-        #expect(SwipeDecision.action(forWidth: 100, predictedEndWidth: 100) == .learned)
-        #expect(SwipeDecision.action(forWidth: 180, predictedEndWidth: 200) == .learned)
-        #expect(SwipeDecision.action(forWidth: -100, predictedEndWidth: -100) == .stillLearning)
-        #expect(SwipeDecision.action(forWidth: -250, predictedEndWidth: -250) == .stillLearning)
+        #expect(SwipeDecision.direction(forWidth: 100, predictedEndWidth: 100) == .right)
+        #expect(SwipeDecision.direction(forWidth: 180, predictedEndWidth: 200) == .right)
+        #expect(SwipeDecision.direction(forWidth: -100, predictedEndWidth: -100) == .left)
+        #expect(SwipeDecision.direction(forWidth: -250, predictedEndWidth: -250) == .left)
     }
 
     @Test func shortSlowDragsSpringBack() {
-        #expect(SwipeDecision.action(forWidth: 99, predictedEndWidth: 150) == nil)
-        #expect(SwipeDecision.action(forWidth: -60, predictedEndWidth: -120) == nil)
-        #expect(SwipeDecision.action(forWidth: 0, predictedEndWidth: 0) == nil)
+        #expect(SwipeDecision.direction(forWidth: 99, predictedEndWidth: 150) == nil)
+        #expect(SwipeDecision.direction(forWidth: -60, predictedEndWidth: -120) == nil)
+        #expect(SwipeDecision.direction(forWidth: 0, predictedEndWidth: 0) == nil)
     }
 
     @Test func quickFlicksCount() {
-        #expect(SwipeDecision.action(forWidth: 40, predictedEndWidth: 400) == .learned)
-        #expect(SwipeDecision.action(forWidth: -40, predictedEndWidth: -400) == .stillLearning)
+        #expect(SwipeDecision.direction(forWidth: 40, predictedEndWidth: 400) == .right)
+        #expect(SwipeDecision.direction(forWidth: -40, predictedEndWidth: -400) == .left)
     }
 
     @Test func aFlickMustStartInTheSameDirection() {
-        #expect(SwipeDecision.action(forWidth: 10, predictedEndWidth: 400) == nil)       // barely moved
-        #expect(SwipeDecision.action(forWidth: 40, predictedEndWidth: -400) == nil)      // moved right, flicks left
+        #expect(SwipeDecision.direction(forWidth: 10, predictedEndWidth: 400) == nil)       // barely moved
+        #expect(SwipeDecision.direction(forWidth: 40, predictedEndWidth: -400) == nil)      // moved right, flicks left
     }
 
     @Test func hintGrowsUpToTheThreshold() {
@@ -139,5 +139,35 @@ import Testing
             word.exampleEN.map { ExampleHighlighter.range(of: word.lemma, in: $0) != nil } ?? false
         }.count
         #expect(Double(found) / Double(catalog.count) > 0.85, "only \(found) of \(catalog.count) examples highlight")
+    }
+}
+
+@Suite struct ReviewTextsTests {
+    @Test func subtitle() {
+        #expect(ReviewTexts.subtitle(remaining: 1) == "Осталось 1 слово")
+        #expect(ReviewTexts.subtitle(remaining: 12) == "Осталось 12 слов")
+    }
+
+    @Test func tomorrow() {
+        #expect(ReviewTexts.emptyMessage(forecast: [0, 35, 4], answeredToday: 0) == "Завтра повторим 35 слов.")
+    }
+
+    @Test func laterThisWeek() {
+        #expect(ReviewTexts.emptyMessage(forecast: [0, 0, 1], answeredToday: 0) == "Через 2 дня повторим 1 слово.")
+        #expect(ReviewTexts.emptyMessage(forecast: [0, 0, 0, 0, 0, 0, 12], answeredToday: 0) == "Через 6 дней повторим 12 слов.")
+    }
+
+    @Test func mentionsWhatWasDoneToday() {
+        #expect(ReviewTexts.emptyMessage(forecast: [0, 3], answeredToday: 22) == "Сегодня повторено 22 слова. Завтра повторим 3 слова.")
+    }
+
+    @Test func reachingTheLimitIsExplained() {
+        #expect(ReviewTexts.emptyMessage(forecast: [15, 0], answeredToday: 50)
+            == "Сегодня повторено 50 слов. Дневной лимит исчерпан, ещё 15 слов ждут завтра.")
+    }
+
+    @Test func nothingScheduledAtAll() {
+        #expect(ReviewTexts.emptyMessage(forecast: [0, 0, 0], answeredToday: 0) == "Выучите новые слова: они появятся здесь завтра.")
+        #expect(ReviewTexts.emptyMessage(forecast: [], answeredToday: 0) == "Выучите новые слова: они появятся здесь завтра.")
     }
 }

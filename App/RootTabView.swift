@@ -11,7 +11,7 @@ struct RootTabView: View {
                 .tabItem { Label(AppTab.learn.title, systemImage: AppTab.learn.symbol) }
                 .tag(AppTab.learn)
 
-            PlaceholderScreen(tab: .review)
+            ReviewView(app: app)
                 .tabItem { Label(AppTab.review.title, systemImage: AppTab.review.symbol) }
                 .badge(app.study.reviewDueCount)
                 .tag(AppTab.review)

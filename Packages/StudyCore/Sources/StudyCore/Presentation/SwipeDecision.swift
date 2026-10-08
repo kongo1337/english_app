@@ -1,6 +1,9 @@
 import Foundation
 
-/// Turns a drag of the card into an action. Right = learned, left = still learning.
+public enum SwipeDirection: Equatable, Sendable { case left, right }
+
+/// Turns a drag of the card into a decision. In the Learn tab right = learned and left =
+/// still learning; in the Review tab right = remembered and left = forgot.
 public enum SwipeDecision {
     /// The card counts as thrown once it is dragged this far…
     public static let distanceThreshold: CGFloat = 100
@@ -10,13 +13,13 @@ public enum SwipeDecision {
     public static let flickMinimumDistance: CGFloat = 30
     public static let maxRotation: Double = 12
 
-    public static func action(forWidth width: CGFloat, predictedEndWidth: CGFloat) -> LearnAction? {
+    public static func direction(forWidth width: CGFloat, predictedEndWidth: CGFloat) -> SwipeDirection? {
         if abs(width) >= distanceThreshold {
-            return width > 0 ? .learned : .stillLearning
+            return width > 0 ? .right : .left
         }
         let sameDirection = (width > 0) == (predictedEndWidth > 0)
         if abs(width) >= flickMinimumDistance, sameDirection, abs(predictedEndWidth) >= flickThreshold {
-            return width > 0 ? .learned : .stillLearning
+            return width > 0 ? .right : .left
         }
         return nil
     }
