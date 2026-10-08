@@ -26,6 +26,7 @@ struct PlaceholderScreen: View {
                 Text(tab.title)
                     .font(Theme.Typography.screenTitle)
                     .foregroundStyle(Theme.textPrimary)
+                    .accessibilityIdentifier("screen.\(tab.rawValue)")
                 Text("Этот экран появится на следующем этапе")
                     .font(Theme.Typography.body)
                     .foregroundStyle(Theme.textSecondary)
@@ -35,7 +36,6 @@ struct PlaceholderScreen: View {
             .padding(.horizontal, Theme.Spacing.screen)
             .padding(.top, Theme.Spacing.large)
         }
-        .accessibilityIdentifier("screen.\(tab.rawValue)")
     }
 }
 

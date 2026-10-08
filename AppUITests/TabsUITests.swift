@@ -22,7 +22,7 @@ final class TabsUITests: XCTestCase {
         let screens = ["learn", "review", "dictionaries", "progress", "settings"]
         for (title, screen) in zip(titles, screens) {
             app.tabBars.buttons[title].tap()
-            XCTAssertTrue(app.otherElements["screen.\(screen)"].waitForExistence(timeout: 5), "no screen for \(title)")
+            XCTAssertTrue(app.staticTexts["screen.\(screen)"].waitForExistence(timeout: 5), "no screen for \(title)")
         }
     }
 }
