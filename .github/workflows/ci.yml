@@ -36,11 +36,24 @@ jobs:
         run: brew install xcodegen
       - name: Generate the Xcode project
         run: xcodegen generate
+      - name: Pick an iPhone simulator
+        run: |
+          xcrun simctl list devices available
+          # Runner images change; use whichever iPhone simulator exists instead of a fixed model.
+          NAME=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          names = [d['name'] for runtime, items in sorted(devices.items()) if 'iOS' in runtime for d in items if d['name'].startswith('iPhone')]
+          print(names[-1] if names else '')
+          ")
+          echo "Using simulator: $NAME"
+          test -n "$NAME"
+          echo "SIM_NAME=$NAME" >> "$GITHUB_ENV"
       - name: Build and test
         run: |
           xcodebuild test \
             -project EnglishCards.xcodeproj \
             -scheme EnglishCards \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "platform=iOS Simulator,name=$SIM_NAME" \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO

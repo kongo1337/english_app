@@ -16,7 +16,7 @@ struct RootTabView: View {
                 .badge(app.study.reviewDueCount)
                 .tag(AppTab.review)
 
-            PlaceholderScreen(tab: .dictionaries)
+            DictionariesView(app: app)
                 .tabItem { Label(AppTab.dictionaries.title, systemImage: AppTab.dictionaries.symbol) }
                 .tag(AppTab.dictionaries)
 
