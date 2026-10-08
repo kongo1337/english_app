@@ -1,0 +1,7 @@
+// Shared build settings. Personal values (team, bundle id) go to Config/Local.xcconfig,
+// which is not committed: copy Local.xcconfig.example and edit it.
+APP_BUNDLE_ID = dev.kongo1337.EnglishCards
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+
+#include? "Local.xcconfig"

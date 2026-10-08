@@ -29,21 +29,22 @@
 │   PillButton, Chip, Badge, CountdownView                     │
 ├──────────────────────────────────────────────────────────────┤
 │ App Services (iOS-зависимые)                                 │
-│   StudyService (фасад) · SpeechService · NotificationService │
-│   HapticsService · BackupService · SettingsStore             │
+│   StudyService (@Observable-обёртка над StudyEngine) ·       │
+│   SpeechService · NotificationService · HapticsService ·     │
+│   BackupService · SettingsStore                              │
 ├──────────────────────────────────────────────────────────────┤
 │ Persistence: SwiftData-модели + SwiftDataProgressRepository  │
 ├──────────────────────────────────────────────────────────────┤
 │ StudyCore (Swift Package, только Foundation, тестируется на  │
 │ Linux): Word, WordProgress, DayClock, DailyPlanBuilder,      │
-│ LeitnerScheduler, LearnSessionQueue, StatsCalculator,        │
-│ WordCatalog (разбор words.json), протоколы репозиториев      │
+│ LeitnerScheduler, LearnSession, StatsCalculator, WordCatalog,│
+│ StudyEngine (вся оркестрация), протокол ProgressRepository   │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 Правила зависимостей:
 - Зависимости направлены **только вниз**. `StudyCore` не импортирует SwiftUI, SwiftData, AVFoundation.
-- View не обращается к SwiftData напрямую (никаких `@Query` во View), только через ViewModel → `StudyService`.
+- View не обращается к SwiftData напрямую (никаких `@Query` во View), только через ViewModel → `StudyService` → `StudyEngine`.
 - Вся логика с датами получает `DayClock` извне, а не вызывает `Date()` сама. Иначе её нельзя протестировать.
 - Случайность — только через переданный генератор с зерном (`SeededRandom`).
 
@@ -99,22 +100,33 @@ struct DailyPlan: Codable, Sendable {
 
 ### Логика
 
-| Компонент | Ответственность | Чистая функция? |
-|-----------|-----------------|-----------------|
-| `DayClock` | `now`, `calendar`, `dayStartHour` → `dayKey(for:)`, `startOfNextDay()` | да (значения задаются извне) |
-| `StudyOrder` | Порядок новых слов: по уровню / случайно / по алфавиту, с зерном | да |
-| `DailyPlanBuilder` | `build(dayKey, catalog, progress, settings) -> DailyPlan` по формуле из спецификации §1.4 | да |
-| `LearnSessionQueue` | Действия «Выучил», «Ещё учу», «Уже знаю», отмена; определяет «круг пройден» | да (принимает и возвращает состояние) |
-| `LeitnerScheduler` | `apply(.remembered/.forgot, to: WordProgress, today:)`; интервалы `[1,3,7,14,30,60]` | да |
-| `ReviewQueueBuilder` | Слова с `due ≤ today`, сортировка, лимит | да |
-| `StatsCalculator` | Серия, итоги, данные для графиков, прогноз | да |
-| `WordCatalog` | Разбор и проверка `words.json`, индексы по id/списку/уровню, поиск | да |
-| `ProgressRepository` (протокол) | `progress(for:)`, `allProgress()`, `save(_:)`, `plan(for:)`, `savePlan`, `appendLog` | — |
-| `InMemoryProgressRepository` | Реализация для тестов | — |
+Реализовано в `Packages/StudyCore/Sources/StudyCore/` (81 тест, покрытие строк 96 %):
+
+| Файл / тип | Ответственность |
+|------------|-----------------|
+| `DayKey` | Календарный день без часового пояса, арифметика по григорианскому календарю (без `Calendar`), хранится строкой `"2026-10-08"` |
+| `DayClock` | Учебный день, начинающийся в `dayStartHour`: `dayKey(for:)`, `startOfNextDay(after:)`, `secondsUntilNextDay(from:)`. Время получает снаружи, переход на летнее время не сдвигает границу |
+| `SeededRandom` | SplitMix64; `stableValue(seed:key:)` — стабильное «случайное» число для слова (одинаково на всех платформах, не зависит от остальных слов) |
+| `StudySettings` | N, буфер B, включённые словари, порядок, лимит повторений, зерно, час начала дня, размер «ещё слов» |
+| `WordCatalog` | Разбор `words.json`, индексы по id/словарю/уровню, поиск по английскому и русскому (точное → префикс → подстрока) |
+| `DailyPlanBuilder` | Хвост («ещё учу», самые давние первыми) + новые слова по формуле `min(N, max(0, N+B−хвост))`; порядок: по уровню / случайно / по алфавиту; следующая пачка для «Ещё 10 слов» |
+| `LearnSession` | Чистые функции карточки: `apply(.learned/.stillLearning/.known)`, `review(.remembered/.forgot)`, `phase(of:)` (`card / roundComplete / dayComplete / allDone`), `startNextRound`, `finishForToday`, `addWords`. Каждое действие возвращает `ActionResult` со снимком для отмены |
+| `LeitnerScheduler` | Интервалы `[1,3,7,14,30,60]`, «Выучил» → коробка 1, «Помню» → +1 коробка (после 6-й — `mastered`), «Забыл» → `learning`, `lapses+1` |
+| `ReviewQueueBuilder` | Слова с `due ≤ today` (самые просроченные первыми), без слов сегодняшнего плана, с учётом дневного лимита и уже данных ответов |
+| `ProgressRules` | Ручные действия из словарей: «Уже знаю», «Вернуть в изучение», «Сбросить», ★ |
+| `UndoStack` | До 10 снимков; очищается при смене дня и при действиях, не являющихся ответом на карточку |
+| `StatsCalculator` | Серия (день засчитывается при ≥ 80 % плана или всех повторениях), итоги по статусам/уровням/словарям, выученные по дням, прогноз повторений |
+| `ProgressRepository` | Протокол хранилища с атомарной операцией `commit(StateChange)`; `InMemoryProgressRepository` для тестов |
+| `StudyEngine` | Оркестрация: держит план и прогресс в памяти, применяет действие, **сначала** сохраняет в репозиторий и только потом обновляет память; смена дня, две раздельные отмены (учить / повторять), очередь повторений для бейджа, словарные действия, статистика |
 
 Каждое пользовательское действие — это транзакция: «старое состояние + действие → новое состояние
-+ запись в журнал». Её применяет `StudyService` и сразу сохраняет. Отмена = применить сохранённый
-снимок предыдущего состояния.
++ запись в журнал» (`StateChange`). Её применяет `StudyEngine` и сразу сохраняет. Отмена =
+применить сохранённый снимок предыдущего состояния; если у слова раньше не было строки прогресса,
+откат её удаляет, так что состояние возвращается в точности.
+
+`StudyEngine` не читает системное время: ему передают `now: @MainActor () -> Date`. SwiftUI-слой
+оборачивает его в `@Observable`-сервис (`StudyService`), поэтому вся логика проверяется тестами
+на Linux, без симулятора.
 
 ## 2.4. Хранение (SwiftData, в приложении)
 
@@ -155,34 +167,39 @@ struct DailyPlan: Codable, Sendable {
        └─ StudyService(catalog, repo, clock, settings)
 
 scenePhase → .active  (а также таймер на начало следующего учебного дня)
-  └─ StudyService.ensureToday()
-       ├─ dayKey = clock.dayKey(now)
+  └─ StudyService → StudyEngine.refreshDay()
+       ├─ dayKey = clock.dayKey(for: now())
        ├─ plan(for: dayKey) существует? → использовать
-       └─ иначе DailyPlanBuilder.build(...) → savePlan → NotificationService.reschedule()
+       └─ иначе DailyPlanBuilder.build(...) → commit(plan) → NotificationService.reschedule()
 
 LearnView ──tap «Выучил»──▶ LearnViewModel.markLearned()
-  └─ StudyService.apply(.learned(wordId))
-       ├─ LearnSessionQueue.apply → новый план + новый WordProgress
-       ├─ repo.save(progress), repo.savePlan(plan), repo.appendLog(...)
-       ├─ undoStack.push(снимок «до»)
-       └─ публикует обновлённое состояние → View перерисовывается; HapticsService.success()
+  └─ StudyService → StudyEngine.perform(.learned)
+       ├─ LearnSession.apply → новый план + новый WordProgress + запись журнала
+       ├─ repository.commit(StateChange)  — атомарно; при ошибке память не меняется
+       ├─ learnUndo.push(снимок «до»)
+       └─ @Observable публикует состояние → View перерисовывается; HapticsService.success()
 ```
 
-`StudyService` помечен `@MainActor @Observable` и хранит текущее состояние: сегодняшний план,
-счётчик повторений для бейджа, текущую карточку. Все вкладки читают состояние из него, поэтому
-бейдж и счётчики всегда согласованы.
+`StudyService` (`@MainActor @Observable`) делегирует всё `StudyEngine` и публикует его состояние:
+сегодняшний план, очередь повторений для бейджа, текущую карточку. Все вкладки читают состояние
+из одного места, поэтому бейдж и счётчики всегда согласованы.
 
 ## 2.6. Структура репозитория
 
 ```
 english_app/
 ├─ project.yml                     # XcodeGen
+├─ Config/
+│  ├─ Shared.xcconfig              # общие настройки; подключает Local.xcconfig (не в git)
+│  └─ Local.xcconfig.example       # шаблон: DEVELOPMENT_TEAM и APP_BUNDLE_ID
+├─ Makefile                        # make data / review / extract / ipa
 ├─ App/
-│  ├─ EnglishCardsApp.swift        # @main, AppContainer, RootTabView
+│  ├─ EnglishCardsApp.swift        # @main
+│  ├─ RootTabView.swift, AppTab.swift, AppResources.swift
 │  ├─ Services/                    # StudyService, SpeechService, NotificationService, HapticsService,
 │  │                               # BackupService, SettingsStore
 │  ├─ Persistence/                 # SwiftData-модели, схема, миграции, SwiftDataProgressRepository
-│  ├─ DesignSystem/                # Theme.swift (токены), Typography, FlashCardView, PillButton, Chip, ...
+│  ├─ DesignSystem/                # Theme.swift (токены, шрифты), Appearance.swift, FlashCardView, PillButton, Chip, ...
 │  ├─ Features/
 │  │  ├─ Learn/                    # LearnView, LearnViewModel, DayCompleteView, RoundCompleteSheet
 │  │  ├─ Review/                   # ReviewView, ReviewViewModel
@@ -196,9 +213,9 @@ english_app/
 │  ├─ Sources/StudyCore/
 │  └─ Tests/StudyCoreTests/
 ├─ AppTests/                       # тесты репозитория SwiftData, StudyService
-├─ AppUITests/                     # smoke-сценарии
-├─ tools/                          # Python: подготовка словаря (см. 03-data-pipeline.md)
-├─ data/                           # промежуточные CSV и исходные списки (raw/ не коммитим, если есть лицензия)
+├─ AppUITests/                     # smoke-сценарии (XCTest)
+├─ tools/                          # Python: словарь (03-data-pipeline.md) и make_assets.py (цвета, иконка)
+├─ data/                           # interim/ в git; raw/ (PDF Oxford, ipa-dict) только локально
 ├─ docs/
 └─ .github/workflows/ci.yml
 ```
@@ -220,7 +237,14 @@ english_app/
 | `badge` | `#F0522F` | `#FF6A4A` | бейдж на вкладке |
 | `success` | `#3E9B6E` | `#5BC08E` | подсказка свайпа «Выучил» |
 | `warning` | `#D9912B` | `#E8A84A` | подсказка свайпа «Ещё учу» |
-| CEFR A1…C1 | 5 приглушённых оттенков от зелёного к фиолетовому | | чип уровня |
+| `LevelA1` | `#4F9D78` | `#6DBE97` | чип уровня A1 (зелёный) |
+| `LevelA2` | `#3E9A9F` | `#5DBBC0` | чип уровня A2 (бирюзовый) |
+| `LevelB1` | `#4F7FC4` | `#72A0E3` | чип уровня B1 (синий) |
+| `LevelB2` | `#6A63C9` | `#8C86E8` | чип уровня B2 (индиго) |
+| `LevelC1` | `#9A5BB5` | `#BB7DD6` | чип уровня C1 (фиолетовый) |
+
+Таблица — источник для `tools/make_assets.py`, который генерирует `Assets.xcassets` (цвета со
+светлым и тёмным вариантом, `AccentColor`, иконка приложения). Правки вносятся в скрипт.
 
 ### Типографика
 - Заголовки и слово на карточке: системный шрифт с засечками (`.fontDesign(.serif)`, New York),

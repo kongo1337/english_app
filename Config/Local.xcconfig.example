@@ -1,0 +1,6 @@
+// Copy to Local.xcconfig (ignored by git) and fill in your values.
+// Your Team ID: Xcode → Settings → Accounts → select the Apple ID → Team ID,
+// or developer.apple.com → Membership details.
+DEVELOPMENT_TEAM = ABCDE12345
+// Must be unique among all apps signed by your team.
+APP_BUNDLE_ID = com.example.EnglishCards

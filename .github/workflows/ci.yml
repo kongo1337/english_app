@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    name: StudyCore tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install time zone data
+        run: apt-get update && apt-get install -y tzdata
+      - name: Test
+        run: swift test
+        working-directory: Packages/StudyCore
+
+  data:
+    name: Dictionary data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: words.json is up to date
+        run: |
+          make data
+          git diff --exit-code App/Resources/words.json
+
+  app:
+    name: App tests (iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        run: xcodegen generate
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project EnglishCards.xcodeproj \
+            -scheme EnglishCards \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -enableCodeCoverage YES \
+            CODE_SIGNING_ALLOWED=NO
