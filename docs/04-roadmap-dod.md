@@ -35,15 +35,15 @@
 ## Этап 1. Данные словарей
 
 **Шаги**
-1. `tools/extract_oxford.py`, `tools/enrich.py`, `tools/build_words.py`, `tools/sample.py`, `Makefile` (`make data`).
-2. Прогнать конвейер, сделать ручную проверку выборки, внести правки в `overrides.csv`.
-3. Положить `words.json` в `App/Resources/`.
+1. ✅ `tools/extract_oxford.py`, `tools/extract_ipa.py`, `tools/build_words.py`, `tools/sample.py`, `Makefile` (`make data`).
+2. ✅ Прогнать конвейер; ⏳ ручная проверка выборки `data/interim/review_sample.md`, правки в `overrides.csv`.
+3. ✅ Положить `words.json` в `App/Resources/`.
 4. В StudyCore: модели `Word`, `CEFRLevel`, `PartOfSpeech`, `WordList` и `WordCatalog.load(data:)` с индексами и поиском.
 
 **DoD**
-- [ ] Пачки переводов для всех записей лежат в `data/interim/translations/`; `make data` из них воспроизводит тот же `words.json` без сети и без ключа API.
-- [ ] Валидатор проходит без ошибок; отчёт предупреждений просмотрен.
-- [ ] Число записей по словарям и уровням совпадает с отчётом извлечения.
+- [x] Пачки переводов для всех записей лежат в `data/interim/translations/`; `make data` из них воспроизводит тот же `words.json` без сети и без ключа API.
+- [x] Валидатор проходит без ошибок; отчёт предупреждений просмотрен.
+- [x] Число записей по словарям и уровням совпадает с отчётом извлечения (3809 + 2129 = 5938; 3000 и 1995 слов, как в PDF).
 - [ ] Проверены 100 случайных записей и все многозначные A1–A2. Неправильных переводов ≤ 2 %, и все найденные исправлены.
 - [ ] Тест StudyCore: каталог из реального `words.json` загружается быстрее 300 мс, все `id` уникальны, у каждого слова ≥ 1 перевода.
 - [ ] Поиск находит `abandon` по «aban» и по «бросать».

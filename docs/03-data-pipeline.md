@@ -25,125 +25,134 @@
 
 ## 3.2. Конвейер
 
+> **Статус: готово.** `App/Resources/words.json` собран: 5938 карточек, у всех есть перевод,
+> пример с переводом и (кроме одной) транскрипция. Осталась ручная выборочная проверка (шаг 5).
+
 ```
-data/raw/                       data/interim/                        App/Resources/
- oxford3000.pdf  ─┐              oxford_lemmas.csv                    words.json
- oxford5000.pdf  ─┴─ 1.extract ─▶ (lemma,pos,cefr,list) ─ 2.enrich ─▶ words_enriched.jsonl ─ 3.validate+build ─▶
-                                                         (перевод,
-                                                          IPA, пример)
-                                         ▲                                     │
-                                         └──── 4.ручная проверка и правки ◀────┘
-                                               data/overrides.csv
+data/raw/ (не в git)           data/interim/ (в git)                        App/Resources/
+ oxford3000.pdf ─┐
+ oxford5000.pdf ─┴─ 1.extract_oxford ─▶ oxford_lemmas.csv ──┐
+                                        translations/*.psv ─┤ 2. перевод (Claude в сессии)
+ ipa-dict/en_US.txt ─ 3.extract_ipa ──▶ ipa.tsv ────────────┼─ 4.build_words ─▶ words.json
+                         data/overrides.csv (ручные правки) ─┘        │
+                                                                      └─▶ build_report.txt
+                                              5.sample ─▶ review_sample.md (выборка для проверки)
 ```
 
-Все шаги — Python-скрипты в `tools/`. Они идемпотентны и запускаются через `make data`.
+Все скрипты лежат в `tools/` и запускаются через `python3 -I`. Сборка из закоммиченных файлов
+работает без сети и без ключа API:
 
-### Шаг 1. `tools/extract_oxford.py`
-- Вход: официальные PDF с oxfordlearnersdictionaries.com (раздел *Wordlists*: «The Oxford 3000
-  by CEFR level», «The Oxford 5000 by CEFR level»). Пользователь скачивает их сам в `data/raw/`.
-- Разбор текста PDF (`pdfplumber`): строки вида `abandon v. B2`, `about prep., adv. A1`,
-  `light n. A1, adj. A2, v. B1`, а также омонимы с цифрой (`bear¹`, `bear²`).
+| Команда | Что делает |
+|---------|-----------|
+| `make data` | проверяет пачки переводов и собирает `words.json` |
+| `make review` | `make data` + выборка для ручной проверки |
+| `make extract` | заново разбирает PDF (нужен `pdftotext`: `brew install poppler`) |
+| `make ipa` | заново извлекает транскрипцию (сначала скачать `en_US.txt`, см. `tools/extract_ipa.py`) |
+
+### Шаг 1. `tools/extract_oxford.py` — список слов из PDF
+- Вход: официальные PDF с oxfordlearnersdictionaries.com («The Oxford 3000 by CEFR level»,
+  «The Oxford 5000 by CEFR level»), лежат в `data/raw/oxford3000.pdf` и `oxford5000.pdf`.
+- `pdftotext` отдаёт текст в порядке колонок. Заголовки `A1`…`C1` задают уровень, строки имеют
+  вид `abandon v.`, `about prep., adv.`, `another det./pron.`, `light (from the sun/a lamp) n., adj.`,
+  `close1 v.` (цифра — номер омонима). Перенесённые строки склеиваются.
 - Нормализация частей речи: `n.→noun`, `v.→verb`, `adj.→adjective`, `adv.→adverb`, `prep.→preposition`,
   `conj.→conjunction`, `pron.→pronoun`, `det.→determiner`, `number`, `exclam.→exclamation`,
-  `modal v.→modal`, `auxiliary v.→auxiliary`, `indefinite article→article`.
+  `modal v.→modal`, `auxiliary v.→auxiliary`, `(in)definite article→article`, `infinitive marker→other`.
 - `id` = `slug(lemma)` + номер омонима + пометка значения + `_` + часть речи. Регистр
   сохраняется, потому что `March` (месяц) и `march` (марш) — разные слова. Примеры: `close-1_verb`,
   `close-2_adjective`, `bank-money_noun`, `bank-river_noun`, `second-1-unit-of-time_noun`, `CD_noun`.
 - Пометка значения из скобок (`bank (money)`, `counter (long flat surface)`) сохраняется
   в поле `sense`. По ней выбирается правильный перевод, и она показывается на карточке.
-- Если слово есть в обоих PDF, сохраняется запись из Oxford 3000.
-- Выход: `data/interim/oxford_lemmas.csv` (колонки `id,lemma,homonym,sense,pos,cefr,list,order`), плюс отчёт с числом записей по словарю и уровню,
-  чтобы сверить с PDF.
-- Запасной вариант: если PDF разбирается плохо, взять готовый открытый CSV-список
-  Oxford 3000/5000 (есть на GitHub) и сверить количество с официальным PDF.
+- Если `id` есть в обоих PDF, остаётся запись из Oxford 3000 (так отброшены `slave`, `whisper` ×2).
+- Выход: `data/interim/oxford_lemmas.csv` (`id,lemma,homonym,sense,pos,cefr,list,order`) и отчёт
+  с числом слов и записей по уровням. 3000 и 1995 заголовочных слов совпадают с PDF.
 
-### Шаг 2. `tools/enrich.py` — перевод, пример, транскрипция
+### Шаг 2. Перевод и примеры — `data/interim/translations/batch_NNN.psv`
+- Переводы сделал Claude прямо в сессии Claude Code, ключ API не понадобился. 60 пачек по 100
+  записей в порядке `oxford_lemmas.csv`; печать пачки — `python3 tools/batch.py N`,
+  проверка — `python3 tools/check_batch.py [N]`.
+- Формат строки: `id | переводы | example_en | example_ru`. Группы значений разделены `; `
+  (первая группа — основной перевод), синонимы внутри группы — запятой:
+  `about_preposition | о, про; около, примерно | Tell me about your family. | Расскажи мне о своей семье.`
+- Требования к переводу:
+  - 1–3 группы значений, самое частое первым;
+  - перевод соответствует части речи и пометке значения (`close-2_adjective` — «близкий»,
+    `bank-river_noun` — «берег»);
+  - грамматические подсказки допускаются в скобках: «родиться (be born)», «мало (few)»;
+  - пример короткий, лексика не сложнее уровня слова, пример содержит само слово или его форму.
+- **Если понадобится перегенерировать без Claude Code**, можно написать скрипт с вызовом LLM
+  через свой ключ API (console.anthropic.com → API Keys, оплата за использование; ключ только
+  в переменной окружения `ANTHROPIC_API_KEY`, не в git). Формат выхода — тот же `.psv`.
 
-**Ключ API не нужен (основной путь).** Перевод и примеры генерирует Claude прямо в сессии
-Claude Code. Он берёт `oxford_lemmas.csv` пачками и записывает результат в
-`data/interim/translations/batch_NNN.tsv`. Эти файлы коммитятся в репозиторий, поэтому
-перегенерировать ничего не придётся. `enrich.py` в этом случае только склеивает пачки и
-добавляет транскрипцию.
+### Шаг 3. `tools/extract_ipa.py` — транскрипция
+- Источник: открытый словарь `open-dict-data/ipa-dict` (лицензия MIT), файл `en_US.txt`.
+  Британский файл этого словаря заметно менее точен, поэтому транскрипция **американская**.
+- Узкие символы заменяются привычными для словарей (`ɫ→l`, `ɹ→r`). Британские написания ищутся
+  по американским (`colour→color`, `litre→liter`…). Составные леммы (`have to`, `ice cream`)
+  собираются из слов.
+- Если у слова несколько произношений, сохраняются первые два: `/ˈkloʊs/, /ˈkloʊz/`. Для омографов,
+  у которых произношение зависит от части речи (`close`, `live`, `read`, `record`, `present`…),
+  нужное указано в `data/overrides.csv`.
+- Выход: `data/interim/ipa.tsv` (`lemma<TAB>ipa`), найдено 4949 из 4950 лемм
+  (`cryptocurrency` добавлена вручную через overrides).
 
-**Запасной путь: свой ключ API.** Нужен, только если вы хотите перегенерировать переводы
-у себя на Mac без Claude Code. Ключ создаётся в консоли разработчика Anthropic
-(console.anthropic.com → API Keys). Оплата идёт за использование, поэтому перед этим нужно
-пополнить баланс. Ключ передаётся через переменную окружения `ANTHROPIC_API_KEY` и никогда
-не коммитится.
+### Шаг 4. `tools/build_words.py` — проверка и сборка
+Ошибки (сборка останавливается):
+- `id` не уникален; у записи нет перевода; перевод есть для неизвестного `id`;
+- неизвестная часть речи; уровень не из диапазона словаря (`ox3000`: A1–B2, `ox5000`: B2–C1);
+- в переводе или русском примере нет кириллицы;
+- строка в `overrides.csv` ссылается на неизвестный `id` или поле.
 
-Формат и требования одинаковы для обоих путей:
+Предупреждения (пишутся в `data/interim/build_report.txt`, сейчас их 112, все просмотрены):
+- латиница в переводе (это грамматические подсказки вида «(a few)» и слова вроде «DVD-диск»);
+- в примере не найдена лемма (неправильные глаголы: `drew`, `woke`, `sank`…);
+- одинаковый основной перевод у разных частей речи одной леммы (`each` det./pron. — «каждый»);
+- больше 3 групп значений, пример длиннее 15 слов, нет транскрипции.
 
-- **Перевод и пример** генерируются пачками по 50 слов. Для каждой записи передаются лемма,
-  часть речи и уровень. Ответ — строгий JSON:
-  ```json
-  {"id":"abandon_verb","ru":["покидать","бросать","отказываться (от)"],
-   "example_en":"They had to abandon the car in the snow.",
-   "example_ru":"Им пришлось бросить машину в снегу."}
-  ```
-  В репозитории пачки хранятся в TSV (так их проще проверять глазами), по 100 записей.
-  Колонки: `id`, `ru` (переводы через `; `), `example_en`, `example_ru`.
+`data/overrides.csv` (`id,field,value`) применяется до проверок. Поля: `translations`
+(группы через `;`), `exampleEN`, `exampleRU`, `ipa`, `sense`.
 
-  Требования к переводу:
-  - 1–3 перевода, самый частый первым;
-  - перевод соответствует части речи (у `close_adj` — «близкий», а не «закрывать»);
-  - пример короткий (≤ 12 слов), лексика не сложнее уровня слова, пример содержит само слово
-    (допускается форма: abandoned).
-  - Готовые пачки не генерируются повторно: скрипт пропускает `id`, которые уже есть в `data/interim/translations/`.
-- **Транскрипция (IPA)** берётся из открытого словаря `open-dict-data/ipa-dict` (MIT): `en_UK`, `en_US`.
-  Если слова там нет, транскрипцию генерирует LLM и запись получает флаг `ipa_generated` для проверки.
-- Выход: `data/interim/words_enriched.jsonl`.
-
-### Шаг 3. `tools/build_words.py` — проверка и сборка
-Проверки (любая ошибка останавливает сборку):
-- `id` уникальны; у каждой записи есть `lemma`, `pos`, `cefr`, `list`;
-- `cefr ∈ {A1,A2,B1,B2,C1}`; у `ox3000` уровни A1–B2, у `ox5000` B2–C1;
-- `ru` — от 1 до 3 непустых строк, каждая содержит кириллицу и не содержит латиницы
-  (исключения можно перечислить в `overrides.csv`);
-- нет пересечения `ox3000` и `ox5000` по `id`;
-- число записей в каждом словаре совпадает с отчётом шага 1.
-
-Предупреждения (сборку не останавливают, попадают в отчёт):
-- в примере нет леммы или её формы;
-- пример длиннее 15 слов;
-- одинаковый перевод у разных частей речи одной леммы.
-
-Затем применяется `data/overrides.csv` (ручные правки: `id,field,value`), проставляется `order`
-и записывается `App/Resources/words.json`:
+Формат `App/Resources/words.json` (≈1,6 МБ, одна строка):
 
 ```json
 {
   "version": 1,
-  "generatedAt": "2026-10-08T12:00:00Z",
-  "counts": {"ox3000": 0, "ox5000": 0},
+  "counts": {"ox3000": 3809, "ox5000": 2129},
   "words": [
     {
-      "id": "abandon_verb",
-      "lemma": "abandon",
+      "id": "close-2_adjective",
+      "lemma": "close",
       "sense": null,
-      "pos": "verb",
-      "cefr": "B2",
+      "pos": "adjective",
+      "cefr": "A2",
       "list": "ox3000",
-      "ipaUK": "əˈbændən",
-      "ipaUS": "əˈbændən",
-      "translations": ["покидать", "бросать", "отказываться (от)"],
-      "exampleEN": "They had to abandon the car in the snow.",
-      "exampleRU": "Им пришлось бросить машину в снегу.",
-      "order": 1
+      "ipa": "/ˈkloʊs/",
+      "translations": ["близкий"],
+      "exampleEN": "The shop is close to my house.",
+      "exampleRU": "Магазин близко к моему дому.",
+      "order": 1243
     }
   ]
 }
 ```
 
-`version` увеличивается при каждом изменении содержимого. Приложение показывает её в разделе
-«О приложении» и пишет в резервную копию.
+Слова отсортированы по `list`, затем по `order` (порядок PDF: внутри словаря по уровню, внутри
+уровня по алфавиту). `version` увеличивается при каждом изменении содержимого; приложение
+показывает её в разделе «О приложении» и пишет в резервную копию. Времени сборки в файле нет
+специально: одинаковые входы дают побайтно одинаковый `words.json`.
 
-### Шаг 4. Ручная проверка
-- Скрипт `tools/sample.py` выдаёт 100 случайных записей и **все** леммы, у которых несколько
-  частей речи на уровнях A1–A2: это самые частые и самые многозначные слова.
-- Исправления вносятся только в `data/overrides.csv`, а не в сгенерированные файлы.
+### Шаг 5. `tools/sample.py` — ручная проверка
+- `make review` пишет `data/interim/review_sample.md`: 100 случайных записей (seed 42) и **все**
+  леммы A1–A2 с несколькими частями речи (сейчас 692 записи) — самые частые и самые многозначные.
+- Исправления вносятся только в `data/overrides.csv`, затем `make data`.
 
 ## 3.3. Что коммитим
-- Коммитим: скрипты, `overrides.csv`, итоговый `App/Resources/words.json`, промежуточный
-  `oxford_lemmas.csv` и пачки переводов `data/interim/translations/` (они нужны для
-  воспроизводимости и занимают несколько мегабайт).
-- Не коммитим: `data/raw/*.pdf` (`.gitignore`).
+- Коммитим: скрипты `tools/`, `Makefile`, `data/overrides.csv`, всё в `data/interim/`
+  (`oxford_lemmas.csv`, `translations/`, `ipa.tsv`, `build_report.txt`, `review_sample.md`)
+  и итоговый `App/Resources/words.json`.
+- Не коммитим: `data/raw/` — PDF Oxford (авторское право OUP) и скачанный ipa-dict (`.gitignore`).
+
+## 3.4. Источники и лицензии (для экрана «О приложении»)
+- Oxford 3000™ и Oxford 5000™ — © Oxford University Press, только личное использование.
+- Транскрипция — ipa-dict, © 2016 dohliam, лицензия MIT.
+- Переводы и примеры — сгенерированы Claude (Anthropic) для этого проекта.

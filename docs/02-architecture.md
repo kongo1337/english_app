@@ -64,9 +64,8 @@ struct Word: Identifiable, Codable, Sendable, Hashable {
     let pos: PartOfSpeech
     let cefr: CEFRLevel
     let list: WordList
-    let ipaUK: String?
-    let ipaUS: String?
-    let translations: [String]  // ≥ 1, первый — основной
+    let ipa: String?            // американская транскрипция: "/ˈkloʊs/" или два варианта через запятую
+    let translations: [String]  // 1–3 группы значений, первая — основная: ["о, про", "около, примерно"]
     let exampleEN: String?
     let exampleRU: String?
     let order: Int              // базовый порядок внутри словаря
