@@ -168,8 +168,14 @@ import Testing
 
     @Test func hardWordsLeadToTheRoundCompleteState() async throws {
         let rig = try makeRig()
-        for _ in 0..<60 { await rig.model.decide(.stillLearning) }
-        // Every card has been seen once and all of them are still unlearned.
+        // Cards marked "still learning" come back after 7 others, so it takes more than 60
+        // presses until every card has been seen and all of them are still unlearned.
+        var presses = 0
+        while case .card = rig.study.phase, presses < 1000 {
+            await rig.model.decide(.stillLearning)
+            presses += 1
+        }
+        #expect(presses > 60 && presses < 1000)
         #expect(rig.study.phase == .roundComplete(remaining: 60))
         rig.model.continueRound()
         guard case .card = rig.study.phase else { Issue.record("expected a card after continuing"); return }

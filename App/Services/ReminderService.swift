@@ -14,13 +14,27 @@ protocol ReminderCenter: AnyObject {
 
 @MainActor
 final class SystemReminderCenter: ReminderCenter {
-    private let center = UNUserNotificationCenter.current()
-
     func requestAuthorization() async -> Bool {
-        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        await Self.authorize()
     }
 
     func replaceAll(_ reminders: [PlannedReminder], calendar: Calendar) async {
+        await Self.schedule(reminders, calendar: calendar)
+    }
+
+    func removeAll() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+
+    // The notification center is not Sendable, so it is only ever used inside these
+    // nonisolated functions, never passed across actors.
+    private nonisolated static func authorize() async -> Bool {
+        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]))
+            ?? false
+    }
+
+    private nonisolated static func schedule(_ reminders: [PlannedReminder], calendar: Calendar) async {
+        let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
         for (index, reminder) in reminders.enumerated() {
             let content = UNMutableNotificationContent()
@@ -32,10 +46,6 @@ final class SystemReminderCenter: ReminderCenter {
             let request = UNNotificationRequest(identifier: "reminder.\(index)", content: content, trigger: trigger)
             try? await center.add(request)
         }
-    }
-
-    func removeAll() {
-        center.removeAllPendingNotificationRequests()
     }
 }
 

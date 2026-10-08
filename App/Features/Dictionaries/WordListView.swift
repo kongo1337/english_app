@@ -46,6 +46,8 @@ struct WordListView: View {
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(list.title)
         .navigationBarTitleDisplayMode(.inline)
+        // The tab root hides the bar; the search field and the back button live in it.
+        .toolbar(.visible, for: .navigationBar)
         .searchable(text: $filter.query, prompt: "Английское или русское слово")
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
