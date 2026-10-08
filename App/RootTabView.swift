@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RootTabView: View {
+    @Environment(StudyService.self) private var study
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection: AppTab = .learn
 
     var body: some View {
@@ -8,10 +10,16 @@ struct RootTabView: View {
             ForEach(AppTab.allCases) { tab in
                 PlaceholderScreen(tab: tab)
                     .tabItem { Label(tab.title, systemImage: tab.symbol) }
+                    .badge(tab == .review ? study.reviewDueCount : 0)
                     .tag(tab)
             }
         }
         .tint(Theme.accent)
+        .onChange(of: scenePhase) { _, phase in
+            // Coming back to the app may mean a new study day has started.
+            if phase == .active { study.refreshDay() }
+        }
+        .task { study.startDayWatcher() }
     }
 }
 
@@ -40,9 +48,9 @@ struct PlaceholderScreen: View {
 }
 
 #Preview("Light") {
-    RootTabView()
+    RootView(model: AppModel(options: LaunchOptions(uiTesting: true)))
 }
 
 #Preview("Dark") {
-    RootTabView().preferredColorScheme(.dark)
+    RootView(model: AppModel(options: LaunchOptions(uiTesting: true))).preferredColorScheme(.dark)
 }

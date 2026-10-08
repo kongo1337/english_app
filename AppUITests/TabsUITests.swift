@@ -10,6 +10,7 @@ final class TabsUITests: XCTestCase {
 
     func testFiveTabsAreVisible() {
         let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
         app.launch()
         for title in titles {
             XCTAssertTrue(app.tabBars.buttons[title].waitForExistence(timeout: 5), "missing tab \(title)")
@@ -18,6 +19,7 @@ final class TabsUITests: XCTestCase {
 
     func testTabsSwitchScreens() {
         let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
         app.launch()
         let screens = ["learn", "review", "dictionaries", "progress", "settings"]
         for (title, screen) in zip(titles, screens) {
