@@ -16,8 +16,7 @@ struct ProgressBar: View {
         }
         .frame(height: 6)
         .animation(.easeOut(duration: 0.25), value: value)
-        .accessibilityElement()
-        .accessibilityLabel("Прогресс за сегодня")
-        .accessibilityValue("\(Int((max(0, min(1, value)) * 100).rounded())) процентов")
+        // The subtitle above says the same in words ("Выучено 3 из 60"), so the bar is decorative.
+        .accessibilityHidden(true)
     }
 }

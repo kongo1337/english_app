@@ -27,11 +27,11 @@ COLORS: dict[str, tuple[str, str]] = {
     "Badge": ("F0522F", "FF6A4A"),
     "Success": ("2B7A52", "5BC08E"),
     "Warning": ("9A5F00", "E8A84A"),
-    "LevelA1": ("2A6E4F", "6DBE97"),
+    "LevelA1": ("276A4B", "6DBE97"),
     "LevelA2": ("176468", "5DBBC0"),
-    "LevelB1": ("2F62A8", "72A0E3"),
+    "LevelB1": ("2B5CA0", "72A0E3"),
     "LevelB2": ("5249B5", "9A95F0"),
-    "LevelC1": ("7E3F99", "BB7DD6"),
+    "LevelC1": ("7E3F99", "C58BE0"),
 }
 
 INFO = {"author": "xcode", "version": 1}
