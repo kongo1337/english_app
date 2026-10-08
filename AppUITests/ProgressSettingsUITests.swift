@@ -22,7 +22,14 @@ final class ProgressSettingsUITests: XCTestCase {
     func testSettingsListsTheSections() {
         app.tabBars.buttons["Настройки"].tap()
         XCTAssertTrue(app.staticTexts["screen.settings"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["exportButton"].waitForExistence(timeout: 5))
+        // The list builds rows lazily, so scroll down to the data section first.
+        let export = app.buttons["exportButton"]
+        var swipes = 0
+        while !export.exists, swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(export.exists, "no export button: \(app.debugDescription)")
         XCTAssertTrue(app.buttons["importButton"].exists)
     }
 

@@ -62,7 +62,6 @@ struct ProgressScreen: View {
         }
         .padding(Theme.Spacing.medium)
         .background { CardSurface() }
-        .accessibilityElement(children: .combine)
     }
 
     private func totalsCard(_ totals: StatusCounts) -> some View {

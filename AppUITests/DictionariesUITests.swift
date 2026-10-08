@@ -22,7 +22,7 @@ final class DictionariesUITests: XCTestCase {
     func testSearchOpenAndMarkAWordAsKnown() {
         app.buttons["dictionaryCard.ox3000"].tap()
         let search = app.searchFields.firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "no search field: \(app.debugDescription)")
         search.tap()
         search.typeText("abandon")
         let row = app.cells.firstMatch
