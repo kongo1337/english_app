@@ -13,6 +13,9 @@
 - В списках у каждой строки есть лемма, часть речи и уровень CEFR. У одной леммы может быть
   несколько частей речи с разными уровнями, например `light` (n. A1, adj. A2, v. B1). Каждая пара
   «лемма + часть речи» становится отдельным `Word`.
+- Фактически извлечено (версия PDF от пользователя): **Oxford 3000** — 3000 слов, 3809 записей
+  (A1 1075, A2 993, B1 906, B2 835); **Oxford 5000 (дополнительные)** — 1995 слов, 2129 записей
+  (B2 731, C1 1398). Всего 5938 карточек.
 
 > **Лицензия.** Списки Oxford 3000/5000 защищены авторским правом Oxford University Press.
 > Использовать их в личном приложении на своём телефоне можно. Публиковать приложение со
@@ -43,9 +46,13 @@ data/raw/                       data/interim/                        App/Resourc
 - Нормализация частей речи: `n.→noun`, `v.→verb`, `adj.→adjective`, `adv.→adverb`, `prep.→preposition`,
   `conj.→conjunction`, `pron.→pronoun`, `det.→determiner`, `number`, `exclam.→exclamation`,
   `modal v.→modal`, `auxiliary v.→auxiliary`, `indefinite article→article`.
-- `id` = `slug(lemma) + "_" + pos`, например `close_verb`, `ice-cream_noun`. Для омонимов с
-  одинаковой частью речи добавляется индекс: `bear_noun`, `bear_verb`, `bear_noun_2`.
-- Выход: `data/interim/oxford_lemmas.csv`, плюс отчёт с числом записей по словарю и уровню,
+- `id` = `slug(lemma)` + номер омонима + пометка значения + `_` + часть речи. Регистр
+  сохраняется, потому что `March` (месяц) и `march` (марш) — разные слова. Примеры: `close-1_verb`,
+  `close-2_adjective`, `bank-money_noun`, `bank-river_noun`, `second-1-unit-of-time_noun`, `CD_noun`.
+- Пометка значения из скобок (`bank (money)`, `counter (long flat surface)`) сохраняется
+  в поле `sense`. По ней выбирается правильный перевод, и она показывается на карточке.
+- Если слово есть в обоих PDF, сохраняется запись из Oxford 3000.
+- Выход: `data/interim/oxford_lemmas.csv` (колонки `id,lemma,homonym,sense,pos,cefr,list,order`), плюс отчёт с числом записей по словарю и уровню,
   чтобы сверить с PDF.
 - Запасной вариант: если PDF разбирается плохо, взять готовый открытый CSV-список
   Oxford 3000/5000 (есть на GitHub) и сверить количество с официальным PDF.
@@ -54,7 +61,7 @@ data/raw/                       data/interim/                        App/Resourc
 
 **Ключ API не нужен (основной путь).** Перевод и примеры генерирует Claude прямо в сессии
 Claude Code. Он берёт `oxford_lemmas.csv` пачками и записывает результат в
-`data/interim/translations/batch_NNN.jsonl`. Эти файлы коммитятся в репозиторий, поэтому
+`data/interim/translations/batch_NNN.tsv`. Эти файлы коммитятся в репозиторий, поэтому
 перегенерировать ничего не придётся. `enrich.py` в этом случае только склеивает пачки и
 добавляет транскрипцию.
 
@@ -73,7 +80,10 @@ Claude Code. Он берёт `oxford_lemmas.csv` пачками и записы�
    "example_en":"They had to abandon the car in the snow.",
    "example_ru":"Им пришлось бросить машину в снегу."}
   ```
-  Требования в промпте:
+  В репозитории пачки хранятся в TSV (так их проще проверять глазами), по 100 записей.
+  Колонки: `id`, `ru` (переводы через `; `), `example_en`, `example_ru`.
+
+  Требования к переводу:
   - 1–3 перевода, самый частый первым;
   - перевод соответствует части речи (у `close_adj` — «близкий», а не «закрывать»);
   - пример короткий (≤ 12 слов), лексика не сложнее уровня слова, пример содержит само слово
@@ -109,6 +119,7 @@ Claude Code. Он берёт `oxford_lemmas.csv` пачками и записы�
     {
       "id": "abandon_verb",
       "lemma": "abandon",
+      "sense": null,
       "pos": "verb",
       "cefr": "B2",
       "list": "ox3000",

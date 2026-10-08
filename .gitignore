@@ -1,0 +1,16 @@
+# Xcode
+*.xcodeproj
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+
+# Data pipeline: Oxford PDFs are copyrighted, keep them local
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+.DS_Store

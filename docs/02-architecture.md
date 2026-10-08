@@ -58,8 +58,9 @@ enum PartOfSpeech: String, Codable { case noun, verb, adjective, adverb, preposi
                                      pronoun, determiner, number, exclamation, modal, auxiliary, article, other }
 
 struct Word: Identifiable, Codable, Sendable, Hashable {
-    let id: String              // стабильный: "close_verb"
+    let id: String              // стабильный: "close-1_verb", "bank-money_noun"
     let lemma: String           // "close"
+    let sense: String?          // пометка значения из списка Oxford: "money" для bank (money)
     let pos: PartOfSpeech
     let cefr: CEFRLevel
     let list: WordList
