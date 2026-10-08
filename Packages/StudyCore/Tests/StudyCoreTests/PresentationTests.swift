@@ -171,3 +171,19 @@ import Testing
         #expect(ReviewTexts.emptyMessage(forecast: [], answeredToday: 0) == "Выучите новые слова: они появятся здесь завтра.")
     }
 }
+
+@Suite struct ProgressTextsTests {
+    @Test func streak() {
+        #expect(ProgressTexts.streak(0) == "Серии пока нет")
+        #expect(ProgressTexts.streak(1) == "Серия: 1 день")
+        #expect(ProgressTexts.streak(3) == "Серия: 3 дня")
+        #expect(ProgressTexts.streak(11) == "Серия: 11 дней")
+        #expect(ProgressTexts.streak(21) == "Серия: 21 день")
+    }
+
+    @Test func dayLabels() {
+        #expect(ProgressTexts.dayLabel(0) == "Сегодня")
+        #expect(ProgressTexts.dayLabel(1) == "Завтра")
+        #expect(ProgressTexts.dayLabel(4) == "+4")
+    }
+}

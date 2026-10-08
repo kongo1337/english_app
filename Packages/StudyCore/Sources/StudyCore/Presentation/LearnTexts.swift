@@ -65,3 +65,20 @@ public enum ReviewTexts {
         return parts.joined(separator: " ")
     }
 }
+
+public enum ProgressTexts {
+    /// "Серия: 5 дней" or an invitation when there is no streak.
+    public static func streak(_ days: Int) -> String {
+        guard days > 0 else { return "Серии пока нет" }
+        return "Серия: \(days) \(RussianPlural.form(days, one: "день", few: "дня", many: "дней"))"
+    }
+
+    /// Label under the forecast bars: today, tomorrow, then "+2".
+    public static func dayLabel(_ offset: Int) -> String {
+        switch offset {
+        case 0: "Сегодня"
+        case 1: "Завтра"
+        default: "+\(offset)"
+        }
+    }
+}

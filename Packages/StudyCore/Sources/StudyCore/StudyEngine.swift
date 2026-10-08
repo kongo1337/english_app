@@ -259,10 +259,43 @@ public final class StudyEngine {
         recomputeReviewQueue()
     }
 
+    // MARK: - Backup and reset
+
+    /// Everything stored, for the backup file.
+    public func snapshot() throws -> BackupPayload {
+        BackupPayload(
+            progress: progress.values.sorted { $0.wordId < $1.wordId },
+            plans: try repository.allPlans(),
+            log: try repository.allLog())
+    }
+
+    /// Replaces all progress with a backup (the caller has validated it) and opens today.
+    public func restore(_ payload: BackupPayload) throws {
+        try repository.replaceAll(progress: payload.progress, plans: payload.plans, log: payload.log)
+        try reload()
+    }
+
+    /// "Сбросить весь прогресс": back to a fresh install.
+    public func eraseAll() throws {
+        try repository.eraseAll()
+        try reload()
+    }
+
+    private func reload() throws {
+        progress = try repository.allProgress()
+        plan = DailyPlan(dayKey: today, wordIds: [])
+        try openDay(clock.dayKey(for: now()))
+    }
+
     // MARK: - Statistics
 
     public func daySummaries() throws -> [DaySummary] {
         StatsCalculator.summaries(plans: try repository.allPlans(), log: try repository.allLog())
+    }
+
+    /// New words learned on each of the last `days` days, oldest first, ending today.
+    public func learnedPerDay(days: Int = 30) throws -> [DayCount] {
+        StatsCalculator.learnedPerDay(log: try repository.allLog(), today: today, days: days)
     }
 
     public func currentStreak() throws -> Int {

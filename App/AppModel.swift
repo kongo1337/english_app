@@ -12,13 +12,20 @@ final class AppEnvironment {
     let settings: SettingsStore
     let speech: any Speaking
     let haptics: HapticsService
+    let reminders: ReminderService
+    let backup: BackupService
 
-    init(catalog: WordCatalog, study: StudyService, settings: SettingsStore, speech: any Speaking, haptics: HapticsService) {
+    init(
+        catalog: WordCatalog, study: StudyService, settings: SettingsStore, speech: any Speaking,
+        haptics: HapticsService, reminders: ReminderService, backup: BackupService
+    ) {
         self.catalog = catalog
         self.study = study
         self.settings = settings
         self.speech = speech
         self.haptics = haptics
+        self.reminders = reminders
+        self.backup = backup
     }
 }
 
@@ -100,7 +107,11 @@ final class AppModel {
             haptics.isEnabled = values.haptics
         }
 
+        let now: @MainActor () -> Date = { fixedNow ?? Date() }
+        let center: any ReminderCenter = options.uiTesting ? NullReminderCenter() : SystemReminderCenter()
         return AppEnvironment(
-            catalog: catalog, study: study, settings: settings, speech: SpeechService(), haptics: haptics)
+            catalog: catalog, study: study, settings: settings, speech: SpeechService(), haptics: haptics,
+            reminders: ReminderService(study: study, settings: settings, center: center, now: now),
+            backup: BackupService(study: study, settings: settings, now: now))
     }
 }

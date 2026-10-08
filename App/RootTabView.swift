@@ -20,11 +20,11 @@ struct RootTabView: View {
                 .tabItem { Label(AppTab.dictionaries.title, systemImage: AppTab.dictionaries.symbol) }
                 .tag(AppTab.dictionaries)
 
-            PlaceholderScreen(tab: .progress)
+            ProgressScreen(app: app)
                 .tabItem { Label(AppTab.progress.title, systemImage: AppTab.progress.symbol) }
                 .tag(AppTab.progress)
 
-            PlaceholderScreen(tab: .settings)
+            SettingsScreen(app: app)
                 .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.symbol) }
                 .tag(AppTab.settings)
         }
@@ -34,30 +34,12 @@ struct RootTabView: View {
             if phase == .active { app.study.refreshDay() }
         }
         .task { app.study.startDayWatcher() }
-    }
-}
-
-/// Stands in for a tab until its real screen is built.
-struct PlaceholderScreen: View {
-    let tab: AppTab
-
-    var body: some View {
-        ZStack {
-            Theme.bg.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 4) {
-                Text(tab.title)
-                    .font(Theme.Typography.screenTitle)
-                    .foregroundStyle(Theme.textPrimary)
-                    .accessibilityIdentifier("screen.\(tab.rawValue)")
-                Text("Этот экран появится на следующем этапе")
-                    .font(Theme.Typography.body)
-                    .foregroundStyle(Theme.textSecondary)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Theme.Spacing.screen)
-            .padding(.top, Theme.Spacing.large)
+        .onChange(of: app.study.phase) { _, phase in
+            // The first finished set of cards is the moment to ask for notification permission.
+            if case .card = phase { return }
+            app.reminders.noteSessionFinished()
         }
+        .task(id: app.reminders.signature) { await app.reminders.refresh() }
     }
 }
 

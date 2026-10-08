@@ -73,6 +73,20 @@ final class StudyService {
     func currentStreak() -> Int { (try? engine.currentStreak()) ?? 0 }
     func bestStreak() -> Int { (try? engine.bestStreak()) ?? 0 }
     func daySummaries() -> [DaySummary] { (try? engine.daySummaries()) ?? [] }
+    func learnedPerDay(days: Int = 30) -> [DayCount] { (try? engine.learnedPerDay(days: days)) ?? [] }
+
+    // MARK: Backup and reset
+
+    func snapshot() throws -> BackupPayload { try engine.snapshot() }
+
+    /// Returns true when the backup was applied.
+    @discardableResult
+    func restore(_ payload: BackupPayload) -> Bool {
+        run { try engine.restore(payload) }
+        return lastError == nil
+    }
+
+    func eraseAll() { run { try engine.eraseAll() } }
 
     // MARK: Day and settings
 
