@@ -12,7 +12,8 @@ struct RootView: View {
             case .failed(let message):
                 FailureView(message: message)
             case .ready(let environment):
-                RootTabView()
+                RootTabView(app: environment)
+                    .environment(environment)
                     .environment(environment.study)
                     .environment(environment.settings)
                     .preferredColorScheme(environment.settings.values.theme.colorScheme)

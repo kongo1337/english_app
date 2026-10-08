@@ -5,6 +5,7 @@ import SwiftData
 
 /// Everything the screens need, created once the dictionary has been loaded.
 @MainActor
+@Observable
 final class AppEnvironment {
     let catalog: WordCatalog
     let study: StudyService
@@ -66,6 +67,13 @@ final class AppModel {
             defaults = .standard
         }
         let settings = SettingsStore(defaults: defaults)
+        if options.uiTesting {
+            // The help sheet would cover the screen in every UI test.
+            settings.update {
+                $0.hasSeenHelp = true
+                if let count = options.newWordsPerDay { $0.study.newWordsPerDay = count }
+            }
+        }
 
         let container = try Persistence.makeContainer(inMemory: options.uiTesting)
         self.container = container

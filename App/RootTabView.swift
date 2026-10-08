@@ -1,25 +1,39 @@
 import SwiftUI
 
 struct RootTabView: View {
-    @Environment(StudyService.self) private var study
+    let app: AppEnvironment
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: AppTab = .learn
 
     var body: some View {
         TabView(selection: $selection) {
-            ForEach(AppTab.allCases) { tab in
-                PlaceholderScreen(tab: tab)
-                    .tabItem { Label(tab.title, systemImage: tab.symbol) }
-                    .badge(tab == .review ? study.reviewDueCount : 0)
-                    .tag(tab)
-            }
+            LearnView(app: app, openReview: { selection = .review })
+                .tabItem { Label(AppTab.learn.title, systemImage: AppTab.learn.symbol) }
+                .tag(AppTab.learn)
+
+            PlaceholderScreen(tab: .review)
+                .tabItem { Label(AppTab.review.title, systemImage: AppTab.review.symbol) }
+                .badge(app.study.reviewDueCount)
+                .tag(AppTab.review)
+
+            PlaceholderScreen(tab: .dictionaries)
+                .tabItem { Label(AppTab.dictionaries.title, systemImage: AppTab.dictionaries.symbol) }
+                .tag(AppTab.dictionaries)
+
+            PlaceholderScreen(tab: .progress)
+                .tabItem { Label(AppTab.progress.title, systemImage: AppTab.progress.symbol) }
+                .tag(AppTab.progress)
+
+            PlaceholderScreen(tab: .settings)
+                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.symbol) }
+                .tag(AppTab.settings)
         }
         .tint(Theme.accent)
         .onChange(of: scenePhase) { _, phase in
             // Coming back to the app may mean a new study day has started.
-            if phase == .active { study.refreshDay() }
+            if phase == .active { app.study.refreshDay() }
         }
-        .task { study.startDayWatcher() }
+        .task { app.study.startDayWatcher() }
     }
 }
 

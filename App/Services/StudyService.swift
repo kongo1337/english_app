@@ -42,6 +42,8 @@ final class StudyService {
     var reviewDueCount: Int { reviewQueue.count }
     var secondsUntilNextDay: TimeInterval { engine.secondsUntilNextDay }
     var studySettings: StudySettings { engine.settings }
+    /// True while enabled dictionaries still hold words that were never shown.
+    var hasNewWords: Bool { engine.hasNewWords }
 
     func status(of id: String) -> WordStatus { progress[id]?.status ?? .new }
 
