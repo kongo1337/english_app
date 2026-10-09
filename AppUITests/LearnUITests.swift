@@ -92,6 +92,23 @@ final class LearnUITests: XCTestCase {
         wait(for: { self.word.exists && self.hasCyrillic(self.word.label) }, "front side did not switch to Russian")
     }
 
+    /// Regression: after quick "Выучил" taps the next card must be on screen, in the middle.
+    func testCardStaysOnScreenAfterManyQuickTaps() {
+        launch()
+        let card = app.otherElements["card"]
+        for _ in 0..<8 {
+            tapAndWaitForNextCard("learnedButton")
+            XCTAssertTrue(card.waitForExistence(timeout: 5), "no card after tapping")
+            let frame = card.frame
+            let screen = app.frame
+            XCTAssertTrue(
+                abs(frame.midX - screen.midX) < 40,
+                "the card is not centred (midX \(frame.midX), screen \(screen.midX))")
+            XCTAssertTrue(card.isHittable, "the card is not hittable")
+        }
+        waitForSubtitle("Выучено 8 из 60 за сегодня")
+    }
+
     func testSwipeRightMarksTheWordLearned() {
         launch()
         let first = word.label

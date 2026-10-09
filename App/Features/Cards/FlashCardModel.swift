@@ -67,14 +67,27 @@ extension FlashCardModel {
         speakIfNeeded()
     }
 
-    /// Moves the card off screen, towards `offset`, and waits until it is gone.
+    /// Moves the card off screen, towards `offset`, and returns once the animation has really
+    /// finished. Resetting the card while the animation is still running leaves SwiftUI drawing
+    /// the old position (a stale "Выучил" label, or a card stuck beyond the screen edge), so the
+    /// caller must not touch the card before this returns.
     func flyOut(to offset: CGSize) async {
         guard flyOutDuration > 0 else { return }
-        withAnimation(.easeIn(duration: flyOutDuration)) {
-            dragWidth = offset.width
-            dragHeight = offset.height
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let gate = ResumeOnce(continuation)
+            withAnimation(.easeIn(duration: flyOutDuration), completionCriteria: .logicallyComplete) {
+                dragWidth = offset.width
+                dragHeight = offset.height
+            } completion: {
+                MainActor.assumeIsolated { gate.fire() }
+            }
+            // Safety net: never leave the screen waiting if the completion is not delivered.
+            let timeout = flyOutDuration + 0.5
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(timeout))
+                gate.fire()
+            }
         }
-        try? await Task.sleep(for: .seconds(flyOutDuration))
     }
 
     func swipeOffset(for direction: SwipeDirection) -> CGSize {
@@ -83,7 +96,7 @@ extension FlashCardModel {
 
     /// Puts the card back face-up in the middle, without animation.
     func resetCard() {
-        var transaction = Transaction()
+        var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             isFlipped = false
@@ -143,5 +156,20 @@ extension FlashCardModel {
     func speakIfNeeded() {
         guard settings.values.autoSpeak, englishVisible, currentWord != nil else { return }
         speakLemma()
+    }
+}
+
+/// Resumes a continuation exactly once, whichever of two callers gets there first.
+@MainActor
+private final class ResumeOnce {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    init(_ continuation: CheckedContinuation<Void, Never>) {
+        self.continuation = continuation
+    }
+
+    func fire() {
+        continuation?.resume()
+        continuation = nil
     }
 }
