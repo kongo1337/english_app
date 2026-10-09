@@ -199,12 +199,13 @@ struct WordCardView<Model: FlashCardModel>: View {
     // MARK: Swipe hints
 
     private var swipeHints: some View {
-        let progress = SwipeDecision.hintProgress(forWidth: model.dragWidth)
+        let width = model.dragOffset(for: word.id).width
+        let progress = SwipeDecision.hintProgress(forWidth: width)
         return ZStack {
             hint(model.rightHint, alignment: .topLeading, tilt: -10)
-                .opacity(model.dragWidth > 0 ? progress : 0)
+                .opacity(width > 0 ? progress : 0)
             hint(model.leftHint, alignment: .topTrailing, tilt: 10)
-                .opacity(model.dragWidth < 0 ? progress : 0)
+                .opacity(width < 0 ? progress : 0)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)

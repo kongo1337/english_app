@@ -14,6 +14,7 @@ final class ReviewViewModel: FlashCardModel {
     var isFlipped = false
     var dragWidth: CGFloat = 0
     var dragHeight: CGFloat = 0
+    var dragOwnerId: String?
     var isBusy = false
 
     @ObservationIgnored var flyOutDuration: Double = 0.2

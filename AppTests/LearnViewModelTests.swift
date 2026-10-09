@@ -166,6 +166,28 @@ import Testing
         #expect(rig.model.currentWord != nil)
     }
 
+    @Test func dragOffsetBelongsToOneCardOnly() async throws {
+        let rig = try makeRig()
+        let first = try #require(rig.model.currentWord)
+        rig.model.dragChanged(width: 80, height: 10)
+        #expect(rig.model.dragOffset(for: first.id).width == 80)
+        #expect(rig.model.dragOffset(for: "another-word") == .zero, "other cards are never moved")
+
+        await rig.model.decide(.learned)
+        let second = try #require(rig.model.currentWord)
+        #expect(second.id != first.id)
+        #expect(rig.model.dragOffset(for: second.id) == .zero)
+        #expect(rig.model.dragOffset(for: first.id) == .zero, "the owner is cleared with the reset")
+    }
+
+    @Test func aLeftoverOffsetNeverShowsOnTheNextCard() async throws {
+        let rig = try makeRig()
+        // Simulate stale state: an offset that still has a value but no owner.
+        rig.model.dragWidth = 600
+        let current = try #require(rig.model.currentWord)
+        #expect(rig.model.dragOffset(for: current.id) == .zero)
+    }
+
     @Test func hardWordsLeadToTheRoundCompleteState() async throws {
         let rig = try makeRig()
         // A card marked "still learning" comes back after 7 others, so pressing it on every card

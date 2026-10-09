@@ -29,6 +29,9 @@ protocol FlashCardModel: AnyObject, Observable {
     var isFlipped: Bool { get set }
     var dragWidth: CGFloat { get set }
     var dragHeight: CGFloat { get set }
+    /// The card the drag state belongs to. Any other card ignores it, so a leftover offset can
+    /// never show up on the next card.
+    var dragOwnerId: String? { get set }
     var isBusy: Bool { get set }
     var flyOutDuration: Double { get set }
     var thresholdHapticFired: Bool { get set }
@@ -60,6 +63,11 @@ extension FlashCardModel {
 
     // MARK: Card
 
+    /// How far the card with this id is dragged (zero for every other card).
+    func dragOffset(for wordId: String) -> CGSize {
+        dragOwnerId == wordId ? CGSize(width: dragWidth, height: dragHeight) : .zero
+    }
+
     func flip() {
         guard currentWord != nil, !isBusy else { return }
         haptics.soft()
@@ -73,6 +81,7 @@ extension FlashCardModel {
     /// caller must not touch the card before this returns.
     func flyOut(to offset: CGSize) async {
         guard flyOutDuration > 0 else { return }
+        dragOwnerId = currentWord?.id
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             let gate = ResumeOnce(continuation)
             withAnimation(.easeIn(duration: flyOutDuration), completionCriteria: .logicallyComplete) {
@@ -102,6 +111,7 @@ extension FlashCardModel {
             isFlipped = false
             dragWidth = 0
             dragHeight = 0
+            dragOwnerId = nil
         }
     }
 
@@ -120,7 +130,8 @@ extension FlashCardModel {
     // MARK: Dragging
 
     func dragChanged(width: CGFloat, height: CGFloat) {
-        guard !isBusy else { return }
+        guard !isBusy, let id = currentWord?.id else { return }
+        dragOwnerId = id
         dragWidth = width
         dragHeight = height * 0.2
         let reached = abs(width) >= SwipeDecision.distanceThreshold

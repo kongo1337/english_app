@@ -14,6 +14,7 @@ final class LearnViewModel: FlashCardModel {
     var isFlipped = false
     var dragWidth: CGFloat = 0
     var dragHeight: CGFloat = 0
+    var dragOwnerId: String?
     var isBusy = false
 
     /// How long the card flies off screen before the action is applied; tests set it to 0.
