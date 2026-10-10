@@ -98,11 +98,16 @@ final class StudyService {
         return changed
     }
 
-    /// Applies new study settings. They affect the plan of the next study day, except for the
-    /// day start hour and the review limit, which apply immediately.
+    /// Applies new study settings. The dictionary and level filter changes today's plan right
+    /// away; the size and order of the set apply from the next study day, while the day start
+    /// hour and the review limit take effect immediately too.
     func apply(_ settings: StudySettings) {
+        let before = engine.settings
         engine.settings = settings
         refreshDay()
+        if before.enabledLists != settings.enabledLists || before.minLevel != settings.minLevel {
+            run { try engine.applyFilterChange() }
+        }
         sync()
     }
 

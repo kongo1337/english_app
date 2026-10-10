@@ -11,6 +11,7 @@ import Testing
         let values = store.values
         #expect(values.study.newWordsPerDay == 60 && values.study.carryoverBuffer == 20)
         #expect(values.study.enabledLists == [.ox3000, .ox5000])
+        #expect(values.study.minLevel == .a1)
         #expect(values.study.order == .byLevel)
         #expect(values.study.reviewLimit == nil)
         #expect(values.study.dayStartHour == 4)

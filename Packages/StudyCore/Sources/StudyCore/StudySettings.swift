@@ -25,11 +25,14 @@ public struct StudySettings: Codable, Equatable, Sendable {
     public var dayStartHour: Int
     /// How many new words the "more words" button adds.
     public var extraBatchSize: Int
+    /// Words below this CEFR level are not offered in "Учить" (A1 = everything).
+    public var minLevel: CEFRLevel
 
     public init(
         newWordsPerDay: Int = 60, carryoverBuffer: Int = 20,
         enabledLists: Set<WordList> = Set(WordList.allCases), order: StudyOrderMode = .byLevel,
-        reviewLimit: Int? = nil, seed: UInt64 = 0x5EED, dayStartHour: Int = 4, extraBatchSize: Int = 10
+        reviewLimit: Int? = nil, seed: UInt64 = 0x5EED, dayStartHour: Int = 4, extraBatchSize: Int = 10,
+        minLevel: CEFRLevel = .a1
     ) {
         self.newWordsPerDay = newWordsPerDay
         self.carryoverBuffer = carryoverBuffer
@@ -39,5 +42,33 @@ public struct StudySettings: Codable, Equatable, Sendable {
         self.seed = seed
         self.dayStartHour = dayStartHour
         self.extraBatchSize = extraBatchSize
+        self.minLevel = minLevel
+    }
+
+    /// Whether a word may be studied under the current dictionary and level choice.
+    /// Progress is never touched by this: words outside the filter simply are not offered.
+    public func allows(_ word: Word) -> Bool {
+        enabledLists.contains(word.list) && word.cefr >= minLevel
+    }
+
+    // Settings written by an older version lack the newer keys: they get the defaults, and the
+    // user's other choices (and the random seed!) survive.
+    private enum CodingKeys: String, CodingKey {
+        case newWordsPerDay, carryoverBuffer, enabledLists, order, reviewLimit, seed
+        case dayStartHour, extraBatchSize, minLevel
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = StudySettings()
+        newWordsPerDay = try c.decodeIfPresent(Int.self, forKey: .newWordsPerDay) ?? d.newWordsPerDay
+        carryoverBuffer = try c.decodeIfPresent(Int.self, forKey: .carryoverBuffer) ?? d.carryoverBuffer
+        enabledLists = try c.decodeIfPresent(Set<WordList>.self, forKey: .enabledLists) ?? d.enabledLists
+        order = try c.decodeIfPresent(StudyOrderMode.self, forKey: .order) ?? d.order
+        reviewLimit = try c.decodeIfPresent(Int.self, forKey: .reviewLimit)
+        seed = try c.decodeIfPresent(UInt64.self, forKey: .seed) ?? d.seed
+        dayStartHour = try c.decodeIfPresent(Int.self, forKey: .dayStartHour) ?? d.dayStartHour
+        extraBatchSize = try c.decodeIfPresent(Int.self, forKey: .extraBatchSize) ?? d.extraBatchSize
+        minLevel = try c.decodeIfPresent(CEFRLevel.self, forKey: .minLevel) ?? d.minLevel
     }
 }

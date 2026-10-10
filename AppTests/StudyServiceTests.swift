@@ -85,6 +85,48 @@ import Testing
         #expect(service.plan.totalCount == 20)
     }
 
+    @Test func raisingTheMinimumLevelChangesTodaysWordsImmediately() throws {
+        let service = try makeService(now: TestNow(testDate(2026, 10, 8)))
+        let first = try #require(service.currentWord)
+        #expect(first.cefr == .a1)
+
+        var settings = service.studySettings
+        settings.minLevel = .b1
+        service.apply(settings)
+
+        let current = try #require(service.currentWord)
+        #expect(current.cefr >= .b1, "the Learn tab shows a B1+ word right now")
+        #expect(service.plan.wordIds.compactMap { service.catalog.word(id: $0) }.allSatisfy { $0.cefr >= .b1 })
+        #expect(service.plan.totalCount == 60)
+    }
+
+    @Test func switchingADictionaryOffChangesTodaysWordsImmediately() throws {
+        let service = try makeService(now: TestNow(testDate(2026, 10, 8)))
+        var settings = service.studySettings
+        settings.enabledLists = [.ox5000]
+        service.apply(settings)
+        // The synthetic test dictionary only has Oxford 3000 words: nothing is left to learn.
+        #expect(service.plan.wordIds.isEmpty)
+        #expect(service.phase == .allDone)
+
+        settings.enabledLists = [.ox3000, .ox5000]
+        service.apply(settings)
+        #expect(service.plan.totalCount == 60, "switching it on again brings the words back")
+        #expect(service.phase != .allDone)
+    }
+
+    @Test func otherSettingsDoNotRebuildTheDay() throws {
+        let service = try makeService(now: TestNow(testDate(2026, 10, 8)))
+        service.perform(.learned)
+        let plan = service.plan
+        var settings = service.studySettings
+        settings.order = .alphabetical
+        settings.newWordsPerDay = 30
+        service.apply(settings)
+        #expect(service.plan == plan, "order and size apply from tomorrow")
+        #expect(service.canUndoLearn)
+    }
+
     @Test func changingTheStartHourReopensTheCorrectDay() throws {
         // 03:00 belongs to the previous study day with a 04:00 start, and to the new one with 02:00.
         let now = TestNow(testDate(2026, 10, 9, 3))

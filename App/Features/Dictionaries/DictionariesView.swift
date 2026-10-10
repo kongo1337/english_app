@@ -16,7 +16,8 @@ struct DictionariesView: View {
                     ForEach(WordList.allCases, id: \.self) { list in
                         DictionaryCard(app: app, list: list)
                     }
-                    Text("Если отключить словарь, новые слова из него перестанут попадать в набор со следующего дня. Уже начатые слова остаются.")
+                    LevelCard(app: app)
+                    Text("Выключенный словарь и слова ниже выбранного уровня сразу уходят из набора на сегодня, а в нём появляются подходящие. Прогресс этих слов сохраняется, а выученные слова продолжают приходить на повторение.")
                         .font(Theme.Typography.small)
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -115,5 +116,51 @@ struct StatusBar: View {
         }
         .frame(height: 8)
         .accessibilityHidden(true)
+    }
+}
+
+/// "Учить слова от уровня": words below the chosen level are not offered in the Learn tab.
+private struct LevelCard: View {
+    let app: AppEnvironment
+
+    private var selected: CEFRLevel { app.settings.values.study.minLevel }
+    private var available: Int {
+        let settings = app.settings.values.study
+        return app.study.catalog.words.filter { settings.allows($0) }.count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.small + 4) {
+            Text("Учить слова от уровня")
+                .font(Theme.Typography.cardTitle)
+                .foregroundStyle(Theme.textPrimary)
+            HStack(spacing: 8) {
+                ForEach(CEFRLevel.allCases, id: \.self) { level in
+                    let isOn = level == selected
+                    Button {
+                        app.settings.update { $0.study.minLevel = level }
+                    } label: {
+                        Text(level.rawValue)
+                            .font(Theme.Typography.bodyEmphasized)
+                            .foregroundStyle(isOn ? Color.white : Theme.textPrimary)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(isOn ? Theme.accent : Theme.surfaceMuted, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isOn ? .isSelected : [])
+                    .accessibilityLabel("Уровень \(level.rawValue)")
+                    .accessibilityIdentifier("levelChip.\(level.rawValue)")
+                }
+            }
+            Text(selected == .a1
+                 ? "Сейчас учатся слова всех уровней: \(available)."
+                 : "Слова уровня ниже \(selected.rawValue) не показываются. Подходит слов: \(available).")
+                .font(Theme.Typography.small)
+                .foregroundStyle(Theme.textSecondary)
+                .accessibilityIdentifier("levelSummary")
+        }
+        .padding(Theme.Spacing.medium)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background { CardSurface() }
     }
 }

@@ -11,7 +11,7 @@ public enum DailyPlanBuilder {
         excluding: Set<String> = []
     ) -> [Word] {
         let candidates = catalog.words.filter { word in
-            settings.enabledLists.contains(word.list)
+            settings.allows(word)
                 && !excluding.contains(word.id)
                 && (progress[word.id]?.status ?? .new) == .new
         }
@@ -38,10 +38,16 @@ public enum DailyPlanBuilder {
         }
     }
 
-    /// "Still learning" words from previous days, the longest-waiting first.
-    public static func carryover(catalog: WordCatalog, progress: [String: WordProgress]) -> [String] {
+    /// "Still learning" words from previous days, the longest-waiting first. Words outside the
+    /// chosen dictionaries / minimum level wait (their progress is kept) until the filter lets them in.
+    public static func carryover(
+        catalog: WordCatalog, progress: [String: WordProgress], settings: StudySettings = StudySettings()
+    ) -> [String] {
         progress.values
-            .filter { $0.status == .learning && catalog.contains($0.wordId) }
+            .filter { entry in
+                guard entry.status == .learning, let word = catalog.word(id: entry.wordId) else { return false }
+                return settings.allows(word)
+            }
             .sorted { lhs, rhs in
                 switch (lhs.lastSeenAt, rhs.lastSeenAt) {
                 case let (l?, r?) where l != r: return l < r
@@ -64,7 +70,7 @@ public enum DailyPlanBuilder {
         dayKey: DayKey, catalog: WordCatalog, progress: [String: WordProgress],
         settings: StudySettings, reviewTarget: Int = 0
     ) -> DailyPlan {
-        let carried = carryover(catalog: catalog, progress: progress)
+        let carried = carryover(catalog: catalog, progress: progress, settings: settings)
         let count = newWordCount(carryover: carried.count, settings: settings)
         let fresh = orderedNewWords(catalog: catalog, progress: progress, settings: settings)
             .prefix(count)

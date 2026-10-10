@@ -40,6 +40,27 @@ final class DictionariesUITests: XCTestCase {
         wait(for: { status.label == "Учу" }, "status did not become 'Учу'")
     }
 
+    func testRaisingTheLevelChangesTheCardsInTheLearnTab() {
+        // Start: the first cards are A1 words of the Oxford 3000.
+        app.tabBars.buttons["Учить"].tap()
+        XCTAssertTrue(app.staticTexts["Уровень A1"].waitForExistence(timeout: 10), "expected an A1 word first")
+
+        app.tabBars.buttons["Словари"].tap()
+        let b1 = app.buttons["levelChip.B1"]
+        var swipes = 0
+        while !b1.isHittable, swipes < 4 {
+            app.swipeUp()
+            swipes += 1
+        }
+        b1.tap()
+        XCTAssertTrue(app.staticTexts["levelSummary"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Учить"].tap()
+        XCTAssertTrue(app.staticTexts["Уровень B1"].waitForExistence(timeout: 10), "expected a B1 word now")
+        XCTAssertFalse(app.staticTexts["Уровень A1"].exists, "no A1 word may remain")
+        XCTAssertFalse(app.staticTexts["Уровень A2"].exists, "no A2 word may remain")
+    }
+
     private func wait(for condition: @escaping () -> Bool, _ message: String, timeout: TimeInterval = 6,
                       file: StaticString = #filePath, line: UInt = #line) {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)

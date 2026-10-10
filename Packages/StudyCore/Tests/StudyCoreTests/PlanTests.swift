@@ -59,16 +59,17 @@ private func learning(_ id: String, seen: Date? = nil) -> WordProgress {
         #expect(Set(plan.wordIds).isDisjoint(with: Set(finished.map(\.wordId))))
     }
 
-    @Test func disabledListGivesNoNewWordsButKeepsCarryover() throws {
+    @Test func disabledListGivesNoWordsAtAll() throws {
         let catalog = try makeCatalog(ox3000: 100, ox5000: 50)
         var settings = StudySettings()
         settings.enabledLists = [.ox5000]
-        // w5 belongs to the disabled Oxford 3000 but was already started.
+        // w5 belongs to the disabled Oxford 3000 and was already started: it waits, with its
+        // progress, until the dictionary is switched on again.
         let plan = DailyPlanBuilder.build(
             dayKey: day, catalog: catalog, progress: progressMap([learning("w5")]), settings: settings)
-        #expect(plan.wordIds.first == "w5")
-        #expect(plan.wordIds.dropFirst().allSatisfy { catalog.word(id: $0)?.list == .ox5000 })
-        #expect(plan.wordIds.count == 1 + 50)
+        #expect(!plan.wordIds.contains("w5"))
+        #expect(plan.wordIds.allSatisfy { catalog.word(id: $0)?.list == .ox5000 })
+        #expect(plan.wordIds.count == 50)
     }
 
     @Test func exhaustedListsLeaveOnlyCarryover() throws {

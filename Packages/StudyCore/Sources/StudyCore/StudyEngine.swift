@@ -97,7 +97,7 @@ public final class StudyEngine {
     /// True while enabled lists still have words that were never shown.
     public var hasNewWords: Bool {
         catalog.words.contains { word in
-            settings.enabledLists.contains(word.list)
+            settings.allows(word)
                 && !plan.wordIds.contains(word.id)
                 && (progress[word.id]?.status ?? .new) == .new
         }
@@ -149,6 +149,26 @@ public final class StudyEngine {
         guard !ids.isEmpty else { return 0 }
         try update(plan: LearnSession.addWords(ids, to: plan))
         return ids.count
+    }
+
+    /// The user changed the dictionaries or the minimum level: rebuild today's plan right away.
+    ///
+    /// Words learned today stay (and keep counting), every other card is replaced by cards that
+    /// pass the new filter, so the Learn tab never shows a word the user has just switched off.
+    /// Words that drop out keep their progress.
+    public func applyFilterChange() throws {
+        let learned = plan.wordIds.filter { plan.learnedIds.contains($0) }
+        var rest = settings
+        rest.newWordsPerDay = max(0, settings.newWordsPerDay - learned.count)
+        let fresh = DailyPlanBuilder.build(
+            dayKey: plan.dayKey, catalog: catalog, progress: progress, settings: rest,
+            reviewTarget: plan.reviewTarget)
+        var next = plan
+        next.wordIds = learned + fresh.wordIds
+        next.queue = fresh.wordIds
+        next.seenIds = []
+        guard next != plan else { return }
+        try update(plan: next)
     }
 
     /// Plan changes that are not card actions cannot be undone, and they invalidate older

@@ -58,7 +58,7 @@ struct LearnView: View {
         case .allDone:
             StatusCard(
                 symbol: "trophy", title: "Все слова пройдены",
-                message: "Вы просмотрели все слова из включённых словарей. Теперь главное — повторения."
+                message: "Вы прошли все слова, подходящие под выбранные словари и уровень. Теперь главное — повторения. Снизить уровень можно на вкладке «Словари»."
             ) {
                 if model.study.reviewDueCount > 0 {
                     Button("Повторить · \(model.study.reviewDueCount)") { openReview() }
