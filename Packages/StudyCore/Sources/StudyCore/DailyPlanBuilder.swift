@@ -15,7 +15,11 @@ public enum DailyPlanBuilder {
                 && !excluding.contains(word.id)
                 && (progress[word.id]?.status ?? .new) == .new
         }
-        switch settings.order {
+        // "By level" lists the easy levels first. With only some levels chosen there is no
+        // such order to keep: the chosen levels are mixed (the same stable shuffle as "random").
+        let order: StudyOrderMode =
+            settings.order == .byLevel && settings.choosesSomeLevels ? .random : settings.order
+        switch order {
         case .byLevel:
             return candidates.sorted { lhs, rhs in
                 if lhs.list != rhs.list { return lhs.list < rhs.list }

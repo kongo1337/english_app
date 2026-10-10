@@ -40,25 +40,38 @@ final class DictionariesUITests: XCTestCase {
         wait(for: { status.label == "Учу" }, "status did not become 'Учу'")
     }
 
-    func testRaisingTheLevelChangesTheCardsInTheLearnTab() {
-        // Start: the first cards are A1 words of the Oxford 3000.
+    func testChoosingLevelsChangesTheCardsInTheLearnTab() {
+        // Start: every level is on, the first cards are A1 words.
         app.tabBars.buttons["Учить"].tap()
         XCTAssertTrue(app.staticTexts["Уровень A1"].waitForExistence(timeout: 10), "expected an A1 word first")
 
+        // Leave only B1, B2 and C1.
         app.tabBars.buttons["Словари"].tap()
-        let b1 = app.buttons["levelChip.B1"]
+        let a1 = app.buttons["levelChip.A1"]
         var swipes = 0
-        while !b1.isHittable, swipes < 4 {
+        while !a1.isHittable, swipes < 4 {
             app.swipeUp()
             swipes += 1
         }
-        b1.tap()
+        a1.tap()
+        app.buttons["levelChip.A2"].tap()
         XCTAssertTrue(app.staticTexts["levelSummary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["levelSummary"].label.contains("вперемешку"), "the summary says the levels are mixed")
 
         app.tabBars.buttons["Учить"].tap()
-        XCTAssertTrue(app.staticTexts["Уровень B1"].waitForExistence(timeout: 10), "expected a B1 word now")
+        let chosen = ["Уровень B1", "Уровень B2", "Уровень C1"].map { app.staticTexts[$0] }
+        wait(for: { chosen.contains { $0.exists } }, "expected a card of a chosen level", timeout: 10)
         XCTAssertFalse(app.staticTexts["Уровень A1"].exists, "no A1 word may remain")
         XCTAssertFalse(app.staticTexts["Уровень A2"].exists, "no A2 word may remain")
+
+        // Swap to A2 + A1 only: the cards change again.
+        app.tabBars.buttons["Словари"].tap()
+        app.buttons["levelAll"].tap()
+        for level in ["B1", "B2", "C1"] { app.buttons["levelChip.\(level)"].tap() }
+        app.tabBars.buttons["Учить"].tap()
+        let easy = ["Уровень A1", "Уровень A2"].map { app.staticTexts[$0] }
+        wait(for: { easy.contains { $0.exists } }, "expected an A1/A2 card after switching", timeout: 10)
+        XCTAssertFalse(app.staticTexts["Уровень B1"].exists)
     }
 
     private func wait(for condition: @escaping () -> Bool, _ message: String, timeout: TimeInterval = 6,

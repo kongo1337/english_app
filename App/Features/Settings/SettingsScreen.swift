@@ -59,10 +59,6 @@ struct SettingsScreen: View {
                 Text("По алфавиту").tag(StudyOrderMode.alphabetical)
             }
 
-            Picker("Минимальный уровень", selection: settings.binding(\.study.minLevel)) {
-                ForEach(CEFRLevel.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-
             Picker("Направление", selection: settings.binding(\.direction)) {
                 Text("EN → RU").tag(CardDirection.enToRu)
                 Text("RU → EN").tag(CardDirection.ruToEn)
@@ -79,7 +75,7 @@ struct SettingsScreen: View {
         } header: {
             Text("Учёба")
         } footer: {
-            Text("Размер набора и порядок действуют с завтрашнего дня. Словари и минимальный уровень меняют набор сразу; их можно переключить и на вкладке «Словари».")
+            Text("Размер набора и порядок действуют с завтрашнего дня. Словари и уровни слов меняют набор сразу, их выбирают на вкладке «Словари».")
         }
     }
 

@@ -17,7 +17,7 @@ struct DictionariesView: View {
                         DictionaryCard(app: app, list: list)
                     }
                     LevelCard(app: app)
-                    Text("Выключенный словарь и слова ниже выбранного уровня сразу уходят из набора на сегодня, а в нём появляются подходящие. Прогресс этих слов сохраняется, а выученные слова продолжают приходить на повторение.")
+                    Text("Выключенный словарь и невыбранные уровни сразу уходят из набора на сегодня, а в нём появляются подходящие слова. Прогресс этих слов сохраняется, а выученные слова продолжают приходить на повторение.")
                         .font(Theme.Typography.small)
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -119,11 +119,11 @@ struct StatusBar: View {
     }
 }
 
-/// "Учить слова от уровня": words below the chosen level are not offered in the Learn tab.
+/// "Уровни": any combination of CEFR levels. Words of the chosen levels are mixed together.
 private struct LevelCard: View {
     let app: AppEnvironment
 
-    private var selected: CEFRLevel { app.settings.values.study.minLevel }
+    private var chosen: Set<CEFRLevel> { app.settings.values.study.levels }
     private var available: Int {
         let settings = app.settings.values.study
         return app.study.catalog.words.filter { settings.allows($0) }.count
@@ -131,14 +131,26 @@ private struct LevelCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.small + 4) {
-            Text("Учить слова от уровня")
-                .font(Theme.Typography.cardTitle)
-                .foregroundStyle(Theme.textPrimary)
+            HStack {
+                Text("Уровни")
+                    .font(Theme.Typography.cardTitle)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                if chosen.count < CEFRLevel.allCases.count {
+                    Button("Все") {
+                        app.settings.update { $0.study.levels = Set(CEFRLevel.allCases) }
+                    }
+                    .font(Theme.Typography.bodyEmphasized)
+                    .foregroundStyle(Theme.accent)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("levelAll")
+                }
+            }
             HStack(spacing: 8) {
                 ForEach(CEFRLevel.allCases, id: \.self) { level in
-                    let isOn = level == selected
+                    let isOn = chosen.contains(level)
                     Button {
-                        app.settings.update { $0.study.minLevel = level }
+                        toggle(level)
                     } label: {
                         Text(level.rawValue)
                             .font(Theme.Typography.bodyEmphasized)
@@ -149,12 +161,11 @@ private struct LevelCard: View {
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isOn ? .isSelected : [])
                     .accessibilityLabel("Уровень \(level.rawValue)")
+                    .accessibilityValue(isOn ? "выбран" : "не выбран")
                     .accessibilityIdentifier("levelChip.\(level.rawValue)")
                 }
             }
-            Text(selected == .a1
-                 ? "Сейчас учатся слова всех уровней: \(available)."
-                 : "Слова уровня ниже \(selected.rawValue) не показываются. Подходит слов: \(available).")
+            Text(summary)
                 .font(Theme.Typography.small)
                 .foregroundStyle(Theme.textSecondary)
                 .accessibilityIdentifier("levelSummary")
@@ -162,5 +173,24 @@ private struct LevelCard: View {
         .padding(Theme.Spacing.medium)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { CardSurface() }
+    }
+
+    private var summary: String {
+        if chosen.count == CEFRLevel.allCases.count {
+            return "Учатся слова всех уровней: \(available)."
+        }
+        let names = CEFRLevel.allCases.filter(chosen.contains).map(\.rawValue).joined(separator: ", ")
+        return "Выбрано: \(names). Слова идут вперемешку. Подходит слов: \(available)."
+    }
+
+    /// At least one level always stays chosen.
+    private func toggle(_ level: CEFRLevel) {
+        app.settings.update {
+            if $0.study.levels.contains(level) {
+                if $0.study.levels.count > 1 { $0.study.levels.remove(level) }
+            } else {
+                $0.study.levels.insert(level)
+            }
+        }
     }
 }

@@ -85,18 +85,32 @@ import Testing
         #expect(service.plan.totalCount == 20)
     }
 
-    @Test func raisingTheMinimumLevelChangesTodaysWordsImmediately() throws {
+    @Test func choosingLevelsChangesTodaysWordsImmediately() throws {
         let service = try makeService(now: TestNow(testDate(2026, 10, 8)))
         let first = try #require(service.currentWord)
         #expect(first.cefr == .a1)
 
         var settings = service.studySettings
-        settings.minLevel = .b1
+        settings.levels = [.b1, .b2]
         service.apply(settings)
 
         let current = try #require(service.currentWord)
-        #expect(current.cefr >= .b1, "the Learn tab shows a B1+ word right now")
-        #expect(service.plan.wordIds.compactMap { service.catalog.word(id: $0) }.allSatisfy { $0.cefr >= .b1 })
+        #expect([CEFRLevel.b1, .b2].contains(current.cefr), "the Learn tab shows a chosen-level word right now")
+        #expect(service.plan.wordIds.compactMap { service.catalog.word(id: $0) }.allSatisfy { [CEFRLevel.b1, .b2].contains($0.cefr) })
+        #expect(service.plan.totalCount == 60)
+    }
+
+    @Test func combiningOtherLevelsReplacesTheWordsAgain() throws {
+        let service = try makeService(now: TestNow(testDate(2026, 10, 8)))
+        var settings = service.studySettings
+        settings.levels = [.b2]
+        service.apply(settings)
+        #expect(service.plan.wordIds.compactMap { service.catalog.word(id: $0) }.allSatisfy { $0.cefr == .b2 })
+
+        settings.levels = [.a2, .b1]
+        service.apply(settings)
+        let levels = Set(service.plan.wordIds.compactMap { service.catalog.word(id: $0) }.map(\.cefr))
+        #expect(levels == [.a2, .b1], "A2 and B1 words are mixed in")
         #expect(service.plan.totalCount == 60)
     }
 

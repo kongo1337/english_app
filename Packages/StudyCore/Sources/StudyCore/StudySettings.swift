@@ -25,14 +25,14 @@ public struct StudySettings: Codable, Equatable, Sendable {
     public var dayStartHour: Int
     /// How many new words the "more words" button adds.
     public var extraBatchSize: Int
-    /// Words below this CEFR level are not offered in "Учить" (A1 = everything).
-    public var minLevel: CEFRLevel
+    /// CEFR levels offered in "Учить". All five by default; never empty.
+    public var levels: Set<CEFRLevel>
 
     public init(
         newWordsPerDay: Int = 60, carryoverBuffer: Int = 20,
         enabledLists: Set<WordList> = Set(WordList.allCases), order: StudyOrderMode = .byLevel,
         reviewLimit: Int? = nil, seed: UInt64 = 0x5EED, dayStartHour: Int = 4, extraBatchSize: Int = 10,
-        minLevel: CEFRLevel = .a1
+        levels: Set<CEFRLevel> = Set(CEFRLevel.allCases)
     ) {
         self.newWordsPerDay = newWordsPerDay
         self.carryoverBuffer = carryoverBuffer
@@ -42,21 +42,27 @@ public struct StudySettings: Codable, Equatable, Sendable {
         self.seed = seed
         self.dayStartHour = dayStartHour
         self.extraBatchSize = extraBatchSize
-        self.minLevel = minLevel
+        self.levels = levels.isEmpty ? Set(CEFRLevel.allCases) : levels
     }
 
     /// Whether a word may be studied under the current dictionary and level choice.
     /// Progress is never touched by this: words outside the filter simply are not offered.
     public func allows(_ word: Word) -> Bool {
-        enabledLists.contains(word.list) && word.cefr >= minLevel
+        enabledLists.contains(word.list) && levels.contains(word.cefr)
     }
+
+    /// True when only some of the levels are chosen. The chosen levels are then mixed together.
+    public var choosesSomeLevels: Bool { levels.count < CEFRLevel.allCases.count }
 
     // Settings written by an older version lack the newer keys: they get the defaults, and the
     // user's other choices (and the random seed!) survive.
     private enum CodingKeys: String, CodingKey {
         case newWordsPerDay, carryoverBuffer, enabledLists, order, reviewLimit, seed
-        case dayStartHour, extraBatchSize, minLevel
+        case dayStartHour, extraBatchSize, levels
     }
+
+    /// Read only: the single minimum level that an earlier version saved.
+    private enum LegacyKeys: String, CodingKey { case minLevel }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -69,6 +75,14 @@ public struct StudySettings: Codable, Equatable, Sendable {
         seed = try c.decodeIfPresent(UInt64.self, forKey: .seed) ?? d.seed
         dayStartHour = try c.decodeIfPresent(Int.self, forKey: .dayStartHour) ?? d.dayStartHour
         extraBatchSize = try c.decodeIfPresent(Int.self, forKey: .extraBatchSize) ?? d.extraBatchSize
-        minLevel = try c.decodeIfPresent(CEFRLevel.self, forKey: .minLevel) ?? d.minLevel
+        if let chosen = try c.decodeIfPresent(Set<CEFRLevel>.self, forKey: .levels), !chosen.isEmpty {
+            levels = chosen
+        } else if let minimum = try decoder.container(keyedBy: LegacyKeys.self)
+            .decodeIfPresent(CEFRLevel.self, forKey: .minLevel)
+        {
+            levels = Set(CEFRLevel.allCases.filter { $0 >= minimum })
+        } else {
+            levels = d.levels
+        }
     }
 }
